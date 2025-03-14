@@ -174,8 +174,12 @@ function initGlobe(settings) {
     }
   }
   
+  // Store reference to glitch timer
+  let glitchTimer = null;
+  let lastGlitchTime = 0;
+  
   // Create the globe
-  function createGlobe() {
+  function createGlobe(useGlitchColors = false) {
     if (!canvasElement) return;
     
     // Set canvas dimensions
@@ -184,6 +188,27 @@ function initGlobe(settings) {
     
     // Current phi value
     let currentPhi = phi;
+    
+    // Define land and glow colors (use glitch colors if requested)
+    let baseColor = [...settings.landColor];
+    let glowColor = [...settings.haloColor];
+    
+    // Apply glitch distortion if requested
+    if (useGlitchColors) {
+      // Create a distorted version of the land color
+      baseColor = [
+        Math.min(1, settings.landColor[0] + (Math.random() * 0.5 - 0.2)),
+        Math.min(1, settings.landColor[1] + (Math.random() * 0.5 - 0.2)),
+        Math.min(1, settings.landColor[2] + (Math.random() * 0.5 - 0.2)),
+      ];
+      
+      // Create a distorted version of the glow color
+      glowColor = [
+        Math.min(1, settings.haloColor[0] + (Math.random() * 0.5 - 0.2)),
+        Math.min(1, settings.haloColor[1] + (Math.random() * 0.5 - 0.2)),
+        Math.min(1, settings.haloColor[2] + (Math.random() * 0.5 - 0.2)),
+      ];
+    }
     
     // Create the globe instance
     globeInstance = COBE(canvasElement, {
@@ -196,9 +221,9 @@ function initGlobe(settings) {
       diffuse: 1.2,
       mapSamples: 16000,
       mapBrightness: 6,
-      baseColor: [0.3, 0.3, 0.3],
+      baseColor: baseColor,
       markerColor: [0.1, 0.8, 1],
-      glowColor: [1, 1, 1],
+      glowColor: glowColor,
       scale: settings.globeSize,
       pointSize: settings.dotSize,
       markers: visitorMarkers,
@@ -243,15 +268,92 @@ function initGlobe(settings) {
       }
     };
     
+    // Add touch-specific event handlers for mobile devices
+    const onTouchStart = (e) => {
+      if (e.touches.length === 1) {
+        e.preventDefault();
+        pointerInteracting = e.touches[0].clientX;
+        pointerInteractionMovement = e.touches[0].clientX;
+      }
+    };
+    
+    const onTouchMove = (e) => {
+      if (e.touches.length === 1 && pointerInteracting !== null) {
+        e.preventDefault();
+        pointerInteractionMovement = e.touches[0].clientX;
+      }
+    };
+    
+    const onTouchEnd = () => {
+      pointerInteracting = null;
+    };
+    
     // Add event listeners
     canvasElement.addEventListener('pointerdown', onPointerDown);
     canvasElement.addEventListener('pointerup', onPointerUp);
     canvasElement.addEventListener('pointerout', onPointerOut);
     canvasElement.addEventListener('pointermove', onPointerMove);
+    
+    // Add touch-specific event listeners for better mobile support
+    canvasElement.addEventListener('touchstart', onTouchStart);
+    canvasElement.addEventListener('touchmove', onTouchMove, { passive: false });
+    canvasElement.addEventListener('touchend', onTouchEnd);
   }
   
   // Create the globe initially
   createGlobe();
+  
+  // Setup glitch effect if enabled
+  if (settings.glitchEffect) {
+    glitchTimer = setInterval(() => {
+      if (!canvasElement || !globeInstance) return;
+      
+      // Only glitch occasionally and randomly
+      if (Math.random() > 0.1) return;
+      
+      // Calculate time since last glitch to avoid too frequent glitches
+      const now = Date.now();
+      if (now - lastGlitchTime < 2000) return;
+      lastGlitchTime = now;
+      
+      // Create a temporary color distortion
+      const glitchDuration = 100 + Math.random() * 300; // 100-400ms glitch
+      
+      // Apply the glitch by reinitializing the globe with distorted settings
+      try {
+        // Store the current cleanup function
+        const cleanup = globeInstance;
+        
+        // Create a new instance to cause a visual "glitch"
+        if (typeof cleanup === 'function') {
+          cleanup();
+          
+          // Force a small delay before recreating
+          setTimeout(() => {
+            if (canvasElement) {
+              createGlobe(true); // Pass true to use glitch colors
+              
+              // Restore normal appearance after the glitch duration
+              setTimeout(() => {
+                if (canvasElement) {
+                  // Only reinitialize if glitch effect is still enabled
+                  if (settings.glitchEffect) {
+                    const cleanup = globeInstance;
+                    if (typeof cleanup === 'function') {
+                      cleanup();
+                      createGlobe(false); // Pass false to use normal colors
+                    }
+                  }
+                }
+              }, glitchDuration);
+            }
+          }, 30);
+        }
+      } catch (e) {
+        console.error("Error during glitch effect:", e);
+      }
+    }, 5000); // Check for glitch opportunity every 5 seconds
+  }
   
   // Handle window resize
   window.addEventListener('resize', () => {
@@ -260,6 +362,13 @@ function initGlobe(settings) {
       globeInstance = null;
     }
     createGlobe();
+  });
+  
+  // Clean up resources when page is closed or navigated away
+  window.addEventListener('beforeunload', () => {
+    if (glitchTimer) {
+      clearInterval(glitchTimer);
+    }
   });
 }`);
 
@@ -271,8 +380,10 @@ This package provides an interactive 3D globe as a website background that respo
 ## Features
 
 - Oversized 3D dot globe as a website background
-- Interactive rotation with mouse movements
+- Interactive rotation with mouse movements and touch support
 - Auto-rotation with adjustable speed
+- Custom land and halo colors
+- Futuristic glitch effect option
 - Optional visitor location marker that persists for 30 days
 - Fully customizable appearance
 
@@ -293,6 +404,9 @@ Edit the settings in globe.js to customize:
 - \`dotSize\`: Size of the dots making up the globe
 - \`globeSize\`: Overall size of the globe
 - \`autoRotate\`: Whether the globe automatically rotates
+- \`landColor\`: Color of continents and land masses [R,G,B] (values 0-1)
+- \`haloColor\`: Color of the glow around the globe [R,G,B] (values 0-1)
+- \`glitchEffect\`: Enable futuristic glitch effect with random color disruptions
 - \`showVisitorLocation\`: Whether to show the visitor's location marker
 
 ## Credits
