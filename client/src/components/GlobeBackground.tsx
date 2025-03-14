@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { GlobeSettings } from "@/hooks/useGlobeSettings";
+import { GlobeSettings, RGBColor } from "@/hooks/useGlobeSettings";
 import createGlobe from "cobe";
 
 interface GlobeBackgroundProps {
@@ -46,6 +46,10 @@ const GlobeBackground = ({ settings }: GlobeBackgroundProps) => {
   const [visitorMarkers, setVisitorMarkers] = useState<LocationMarker[]>([]);
   // Use any type to avoid TypeScript issues with the cobe library
   const globeInstanceRef = useRef<any>(null);
+  // For glitch effect
+  const glitchTimerRef = useRef<number | null>(null);
+  const originalLandColorRef = useRef<RGBColor>(settings.landColor);
+  const lastGlitchTimeRef = useRef<number>(0);
   
   // Get visitor's location when component mounts
   useEffect(() => {
@@ -102,116 +106,233 @@ const GlobeBackground = ({ settings }: GlobeBackgroundProps) => {
     }
   }, []);
   
+  // Handle glitch effect
+  useEffect(() => {
+    // Store original land color for reference
+    originalLandColorRef.current = settings.landColor;
+    
+    // Clean up any existing glitch timer
+    if (glitchTimerRef.current !== null) {
+      clearInterval(glitchTimerRef.current);
+      glitchTimerRef.current = null;
+    }
+    
+    // If glitch effect is enabled, set up the glitch timer
+    if (settings.glitchEffect) {
+      // Glitch effect timer
+      glitchTimerRef.current = window.setInterval(() => {
+        if (!canvasRef.current || !globeInstanceRef.current) return;
+        
+        // Only glitch occasionally and randomly
+        if (Math.random() > 0.1) return;
+        
+        // Calculate time since last glitch to avoid too frequent glitches
+        const now = Date.now();
+        if (now - lastGlitchTimeRef.current < 2000) return;
+        lastGlitchTimeRef.current = now;
+        
+        // Create a temporary color distortion
+        const glitchDuration = 100 + Math.random() * 300; // 100-400ms glitch
+        
+        // Apply the glitch by reinitializing the globe with distorted settings
+        try {
+          // Store the current cleanup function
+          const cleanup = globeInstanceRef.current;
+          
+          // Create a new instance to cause a visual "glitch"
+          if (typeof cleanup === 'function') {
+            cleanup();
+            
+            // Force a small delay before recreating
+            setTimeout(() => {
+              if (canvasRef.current) {
+                initGlobe(true); // Pass true to use glitch colors
+                
+                // Restore normal appearance after the glitch duration
+                setTimeout(() => {
+                  if (canvasRef.current) {
+                    // Only reinitialize if glitch effect is still enabled
+                    if (settings.glitchEffect) {
+                      const cleanup = globeInstanceRef.current;
+                      if (typeof cleanup === 'function') {
+                        cleanup();
+                        initGlobe(false); // Pass false to use normal colors
+                      }
+                    }
+                  }
+                }, glitchDuration);
+              }
+            }, 30);
+          }
+        } catch (e) {
+          console.error("Error during glitch effect:", e);
+        }
+      }, 5000); // Check for glitch opportunity every 5 seconds
+    }
+    
+    return () => {
+      if (glitchTimerRef.current !== null) {
+        clearInterval(glitchTimerRef.current);
+        glitchTimerRef.current = null;
+      }
+    };
+  }, [settings.glitchEffect, settings.landColor]);
+  
+  // Function to create the globe
+  const initGlobe = (useGlitchColors = false) => {
+    if (!canvasRef.current) return;
+    
+    try {
+      console.log("Creating globe instance with settings:", settings);
+      
+      // Store the starting position
+      let currentPhi = phiRef.current;
+      let currentTheta = thetaRef.current;
+      
+      // Define land and glow colors (use glitch colors if requested)
+      let baseColor: RGBColor = [...settings.landColor];
+      let glowColor: RGBColor = [...settings.haloColor];
+      
+      // Apply glitch distortion if requested
+      if (useGlitchColors) {
+        // Create a distorted version of the land color
+        baseColor = [
+          Math.min(1, settings.landColor[0] + (Math.random() * 0.5 - 0.2)),
+          Math.min(1, settings.landColor[1] + (Math.random() * 0.5 - 0.2)),
+          Math.min(1, settings.landColor[2] + (Math.random() * 0.5 - 0.2)),
+        ];
+        
+        // Create a distorted version of the glow color
+        glowColor = [
+          Math.min(1, settings.haloColor[0] + (Math.random() * 0.5 - 0.2)),
+          Math.min(1, settings.haloColor[1] + (Math.random() * 0.5 - 0.2)),
+          Math.min(1, settings.haloColor[2] + (Math.random() * 0.5 - 0.2)),
+        ];
+      }
+      
+      // Define options for the globe
+      const options: CustomCOBEOptions = {
+        devicePixelRatio: 2,
+        width: window.innerWidth,
+        height: window.innerHeight,
+        phi: currentPhi,
+        theta: currentTheta,
+        dark: 1,
+        diffuse: 1.2,
+        mapSamples: 16000,
+        mapBrightness: 6,
+        baseColor: baseColor,
+        markerColor: [0.1, 0.8, 1],
+        glowColor: glowColor,
+        scale: settings.globeSize,
+        pointSize: settings.dotSize,
+        markers: visitorMarkers,
+        onRender: (state: any) => {
+          // Auto rotation
+          if (settings.autoRotate) {
+            currentPhi += settings.rotationSpeed / 1000;
+          }
+          
+          // When the user is interacting with the globe
+          if (pointerInteracting.current !== null) {
+            // Modify rotation based on pointer interaction
+            const pointerPhiDiff = (pointerInteracting.current - pointerInteractionMovement.current) * 
+                                  (settings.mouseSensitivity / 200);
+            currentPhi += pointerPhiDiff;
+            pointerInteractionMovement.current = pointerInteracting.current;
+          }
+          
+          // Update the rotation state
+          state.phi = currentPhi;
+          phiRef.current = currentPhi;
+          state.theta = currentTheta;
+          thetaRef.current = currentTheta;
+        }
+      };
+      
+      // Initialize the globe with createGlobe from the imported package
+      // Cast to any to avoid TypeScript errors with the library's type definitions
+      globeInstanceRef.current = createGlobe(canvasRef.current, options as any);
+      
+      console.log("Globe instance created successfully");
+      
+      // Return cleanup function for the event listeners
+      return () => {
+        // Event listeners will be set up separately
+      };
+    } catch (error) {
+      console.error("Error creating globe:", error);
+      return undefined;
+    }
+  };
+  
   useEffect(() => {
     if (!canvasRef.current) return;
     
     console.log("Attempting to initialize globe");
     
-    const width = window.innerWidth;
-    const height = window.innerHeight;
-    
     // Set canvas dimensions to match window
-    canvasRef.current.width = width;
-    canvasRef.current.height = height;
+    canvasRef.current.width = window.innerWidth;
+    canvasRef.current.height = window.innerHeight;
     
-    // Function to create the globe
-    const initGlobe = () => {
-      if (!canvasRef.current) return;
-      
-      try {
-        console.log("Creating globe instance with settings:", settings);
-        
-        // Store the starting position
-        let currentPhi = phiRef.current;
-        
-        // Define options for the globe
-        const options: CustomCOBEOptions = {
-          devicePixelRatio: 2,
-          width: width,
-          height: height,
-          phi: currentPhi,
-          theta: thetaRef.current,
-          dark: 1,
-          diffuse: 1.2,
-          mapSamples: 16000,
-          mapBrightness: 6,
-          baseColor: [0.3, 0.3, 0.3],
-          markerColor: [0.1, 0.8, 1],
-          glowColor: [1, 1, 1],
-          scale: settings.globeSize,
-          pointSize: settings.dotSize,
-          markers: visitorMarkers,
-          onRender: (state: any) => {
-            // Auto rotation
-            if (settings.autoRotate) {
-              currentPhi += settings.rotationSpeed / 1000;
-            }
-            
-            // When the user is interacting with the globe
-            if (pointerInteracting.current !== null) {
-              // Modify rotation based on pointer interaction
-              const pointerPhiDiff = pointerInteracting.current - pointerInteractionMovement.current;
-              currentPhi += pointerPhiDiff * (settings.mouseSensitivity / 200);
-              pointerInteractionMovement.current = pointerInteracting.current;
-            }
-            
-            // Update the rotation state
-            state.phi = currentPhi;
-            phiRef.current = currentPhi;
-          }
-        };
-        
-        // Initialize the globe with createGlobe from the imported package
-        // Cast to any to avoid TypeScript errors with the library's type definitions
-        globeInstanceRef.current = createGlobe(canvasRef.current, options as any);
-        
-        console.log("Globe instance created successfully");
-        
-        // Add mouse interaction handlers
-        const onPointerDown = (e: PointerEvent) => {
-          pointerInteracting.current = e.clientX;
-          canvasRef.current?.style.setProperty('cursor', 'grabbing');
-        };
-        
-        const onPointerUp = () => {
-          pointerInteracting.current = null;
-          canvasRef.current?.style.setProperty('cursor', 'grab');
-        };
-        
-        const onPointerOut = () => {
-          pointerInteracting.current = null;
-          canvasRef.current?.style.setProperty('cursor', 'auto');
-        };
-        
-        const onPointerMove = (e: PointerEvent) => {
-          if (pointerInteracting.current !== null) {
-            pointerInteractionMovement.current = e.clientX;
-          }
-        };
-        
-        // Add event listeners
-        canvasRef.current.addEventListener('pointerdown', onPointerDown);
-        canvasRef.current.addEventListener('pointerup', onPointerUp);
-        canvasRef.current.addEventListener('pointerout', onPointerOut);
-        canvasRef.current.addEventListener('pointermove', onPointerMove);
-        
-        // Return cleanup function for the event listeners
-        return () => {
-          if (canvasRef.current) {
-            canvasRef.current.removeEventListener('pointerdown', onPointerDown);
-            canvasRef.current.removeEventListener('pointerup', onPointerUp);
-            canvasRef.current.removeEventListener('pointerout', onPointerOut);
-            canvasRef.current.removeEventListener('pointermove', onPointerMove);
-          }
-        };
-      } catch (error) {
-        console.error("Error creating globe:", error);
-        return undefined;
+    // Initialize the globe
+    initGlobe();
+    
+    // Add pointer interaction handlers
+    const onPointerDown = (e: PointerEvent) => {
+      pointerInteracting.current = e.clientX;
+      pointerInteractionMovement.current = e.clientX;
+      canvasRef.current?.style.setProperty('cursor', 'grabbing');
+    };
+    
+    const onPointerUp = () => {
+      pointerInteracting.current = null;
+      canvasRef.current?.style.setProperty('cursor', 'grab');
+    };
+    
+    const onPointerOut = () => {
+      pointerInteracting.current = null;
+      canvasRef.current?.style.setProperty('cursor', 'auto');
+    };
+    
+    const onPointerMove = (e: PointerEvent) => {
+      if (pointerInteracting.current !== null) {
+        pointerInteractionMovement.current = e.clientX;
       }
     };
     
-    // Initialize the globe and get the cleanup function for event listeners
-    const cleanupEvents = initGlobe();
+    // Add touch handlers specially for mobile devices
+    const onTouchStart = (e: TouchEvent) => {
+      if (e.touches.length === 1) {
+        e.preventDefault();
+        pointerInteracting.current = e.touches[0].clientX;
+        pointerInteractionMovement.current = e.touches[0].clientX;
+      }
+    };
+    
+    const onTouchMove = (e: TouchEvent) => {
+      if (e.touches.length === 1 && pointerInteracting.current !== null) {
+        e.preventDefault();
+        pointerInteractionMovement.current = e.touches[0].clientX;
+      }
+    };
+    
+    const onTouchEnd = () => {
+      pointerInteracting.current = null;
+    };
+    
+    // Add event listeners
+    if (canvasRef.current) {
+      canvasRef.current.addEventListener('pointerdown', onPointerDown);
+      canvasRef.current.addEventListener('pointerup', onPointerUp);
+      canvasRef.current.addEventListener('pointerout', onPointerOut);
+      canvasRef.current.addEventListener('pointermove', onPointerMove);
+      
+      // Add touch-specific event listeners for better mobile support
+      canvasRef.current.addEventListener('touchstart', onTouchStart);
+      canvasRef.current.addEventListener('touchmove', onTouchMove, { passive: false });
+      canvasRef.current.addEventListener('touchend', onTouchEnd);
+    }
     
     // Handle resize
     const handleResize = () => {
@@ -243,7 +364,17 @@ const GlobeBackground = ({ settings }: GlobeBackgroundProps) => {
     
     return () => {
       // Cleanup event listeners
-      if (cleanupEvents) cleanupEvents();
+      if (canvasRef.current) {
+        canvasRef.current.removeEventListener('pointerdown', onPointerDown);
+        canvasRef.current.removeEventListener('pointerup', onPointerUp);
+        canvasRef.current.removeEventListener('pointerout', onPointerOut);
+        canvasRef.current.removeEventListener('pointermove', onPointerMove);
+        
+        canvasRef.current.removeEventListener('touchstart', onTouchStart);
+        canvasRef.current.removeEventListener('touchmove', onTouchMove);
+        canvasRef.current.removeEventListener('touchend', onTouchEnd);
+      }
+      
       window.removeEventListener('resize', handleResize);
       
       // Clean up globe instance
@@ -257,6 +388,12 @@ const GlobeBackground = ({ settings }: GlobeBackgroundProps) => {
           console.error("Error cleaning up globe instance:", e);
         }
         globeInstanceRef.current = null;
+      }
+      
+      // Clean up glitch timer
+      if (glitchTimerRef.current !== null) {
+        clearInterval(glitchTimerRef.current);
+        glitchTimerRef.current = null;
       }
     };
   }, [settings, visitorMarkers]); // Re-create when settings or markers change

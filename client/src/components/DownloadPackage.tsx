@@ -92,6 +92,9 @@ const DownloadPackage = ({ settings }: DownloadPackageProps) => {
     dotSize: ${settings.dotSize},
     globeSize: ${settings.globeSize},
     autoRotate: ${settings.autoRotate},
+    landColor: [${settings.landColor[0]}, ${settings.landColor[1]}, ${settings.landColor[2]}],
+    haloColor: [${settings.haloColor[0]}, ${settings.haloColor[1]}, ${settings.haloColor[2]}],
+    glitchEffect: ${settings.glitchEffect},
     showVisitorLocation: true  // Set to false to disable visitor location marker
   };
 

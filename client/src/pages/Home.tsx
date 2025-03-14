@@ -1,8 +1,8 @@
 import GlobeBackground from "@/components/GlobeBackground";
 import GlobeControls from "@/components/GlobeControls";
 import DownloadPackage from "@/components/DownloadPackage";
-import { useGlobeSettings } from "@/hooks/useGlobeSettings";
-import { GlobeIcon, Github } from "lucide-react";
+import { useGlobeSettings, RGBColor } from "@/hooks/useGlobeSettings";
+import { GlobeIcon, Github, Zap } from "lucide-react";
 
 export default function Home() {
   const {
@@ -11,7 +11,10 @@ export default function Home() {
     updateMouseSensitivity,
     updateDotSize,
     updateGlobeSize,
-    updateAutoRotate
+    updateAutoRotate,
+    updateLandColor,
+    updateHaloColor,
+    updateGlitchEffect
   } = useGlobeSettings();
   
   return (
@@ -70,8 +73,11 @@ export default function Home() {
               <p className="text-sm text-white/70">Adjust globe size, dot size, rotation speed, and other parameters.</p>
             </div>
             <div className="bg-white/5 p-4 rounded-lg">
-              <h3 className="text-lg font-medium mb-2 text-indigo-300">Visitor Location</h3>
-              <p className="text-sm text-white/70">Marks visitor location with a dot that persists for 30 days.</p>
+              <h3 className="text-lg font-medium mb-2 flex items-center gap-1">
+                <span className="text-indigo-300">Visual Effects</span>
+                <Zap className="h-4 w-4 text-yellow-400" />
+              </h3>
+              <p className="text-sm text-white/70">Custom colors, glitch effects, and futuristic visual touches.</p>
             </div>
           </div>
           
@@ -128,6 +134,9 @@ export default function Home() {
         onDotSizeChange={updateDotSize}
         onGlobeSizeChange={updateGlobeSize}
         onAutoRotateChange={updateAutoRotate}
+        onLandColorChange={updateLandColor}
+        onHaloColorChange={updateHaloColor}
+        onGlitchEffectChange={updateGlitchEffect}
       />
     </>
   );
