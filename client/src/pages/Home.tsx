@@ -1,5 +1,6 @@
 import GlobeBackground from "@/components/GlobeBackground";
 import GlobeControls from "@/components/GlobeControls";
+import DownloadPackage from "@/components/DownloadPackage";
 import { useGlobeSettings } from "@/hooks/useGlobeSettings";
 import { GlobeIcon, Github } from "lucide-react";
 
@@ -38,7 +39,7 @@ export default function Home() {
       
       {/* Page content that will appear above the globe */}
       <div className="relative z-10 min-h-screen flex flex-col items-center justify-center px-4 sm:px-6 lg:px-8">
-        <div className="max-w-3xl w-full bg-black/40 backdrop-blur-md p-8 rounded-xl border border-white/10 shadow-xl">
+        <div className="max-w-4xl w-full bg-black/40 backdrop-blur-md p-8 rounded-xl border border-white/10 shadow-xl">
           <h1 className="text-4xl sm:text-5xl font-bold mb-6 bg-gradient-to-r from-white to-indigo-200 bg-clip-text text-transparent">
             Interactive 3D Globe Background
           </h1>
@@ -48,11 +49,14 @@ export default function Home() {
             <span className="block mt-2 text-indigo-300">Your visitor's location is marked with an orange dot that persists for 30 days.</span>
           </p>
           <div className="flex flex-col sm:flex-row gap-4">
-            <button className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-medium py-2 px-6 rounded-lg hover:opacity-90 transition duration-200">
-              Get Started
-            </button>
-            <button className="border border-white/20 py-2 px-6 rounded-lg hover:bg-white/5 transition duration-200">
-              Learn More
+            <a href="#download" className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-medium py-2 px-6 rounded-lg hover:opacity-90 transition duration-200 text-center">
+              Download For Your Site
+            </a>
+            <button 
+              onClick={() => document.querySelector('.controls-toggle')?.scrollIntoView({ behavior: 'smooth' })}
+              className="border border-white/20 py-2 px-6 rounded-lg hover:bg-white/5 transition duration-200"
+            >
+              Customize Settings
             </button>
           </div>
           
@@ -70,11 +74,50 @@ export default function Home() {
               <p className="text-sm text-white/70">Marks visitor location with a dot that persists for 30 days.</p>
             </div>
           </div>
+          
+          {/* Download section */}
+          <div id="download" className="mt-16 pt-6 border-t border-white/10">
+            <h2 className="text-2xl font-bold mb-6 text-white">Add This Globe To Your Website</h2>
+            <p className="text-white/70 mb-6">
+              Download a ready-to-use package with your current globe settings. 
+              Just upload the files to your website and include the code snippets as instructed.
+            </p>
+            
+            <DownloadPackage settings={settings} />
+          </div>
+          
+          {/* How it works section */}
+          <div className="mt-16 pt-6 border-t border-white/10">
+            <h2 className="text-2xl font-bold mb-6 text-white">How It Works</h2>
+            <div className="space-y-4">
+              <div className="bg-white/5 p-4 rounded-lg">
+                <h3 className="text-lg font-medium mb-2 text-indigo-300">WebGL Rendering</h3>
+                <p className="text-sm text-white/70">
+                  The globe is rendered using WebGL through the COBE library, providing smooth performance 
+                  even for complex 3D visualizations in the browser.
+                </p>
+              </div>
+              <div className="bg-white/5 p-4 rounded-lg">
+                <h3 className="text-lg font-medium mb-2 text-indigo-300">Geolocation API</h3>
+                <p className="text-sm text-white/70">
+                  Visitor location markers use the browser's Geolocation API to determine coordinates, 
+                  which are then stored locally for 30 days.
+                </p>
+              </div>
+              <div className="bg-white/5 p-4 rounded-lg">
+                <h3 className="text-lg font-medium mb-2 text-indigo-300">LocalStorage Persistence</h3>
+                <p className="text-sm text-white/70">
+                  Settings and visitor location data are stored in the browser's localStorage, 
+                  ensuring persistence without requiring server-side storage.
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
       
       {/* Footer */}
-      <footer className="relative z-10 w-full text-center py-4 text-white/50 text-sm">
+      <footer className="relative z-10 w-full text-center py-6 mt-8 text-white/50 text-sm">
         Built with React, TypeScript, Tailwind CSS and COBE
       </footer>
       

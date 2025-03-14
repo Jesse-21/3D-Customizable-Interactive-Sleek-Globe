@@ -57,7 +57,7 @@ const GlobeControls = ({
         </div>
         <button 
           onClick={toggleControls} 
-          className="text-white rounded-full p-1 hover:bg-white/10 transition-colors"
+          className="controls-toggle text-white rounded-full p-1 hover:bg-white/10 transition-colors"
           aria-label={isOpen ? "Close controls" : "Open controls"}
         >
           {isOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
