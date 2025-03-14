@@ -1,9 +1,9 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { GlobeSettings } from "@/hooks/useGlobeSettings";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { ChevronDown, ChevronUp, Settings } from "lucide-react";
+import { ChevronDown, ChevronUp, MapPin, RotateCcw, Settings } from "lucide-react";
 
 interface GlobeControlsProps {
   settings: GlobeSettings;
@@ -23,9 +23,29 @@ const GlobeControls = ({
   onAutoRotateChange
 }: GlobeControlsProps) => {
   const [isOpen, setIsOpen] = useState(false);
+  const [showVisitorMarker, setShowVisitorMarker] = useState(
+    localStorage.getItem('showLocationMarkers') !== 'false'
+  );
   
   const toggleControls = () => {
     setIsOpen(!isOpen);
+  };
+  
+  // Toggle visitor location marker
+  const toggleVisitorMarker = () => {
+    const newValue = !showVisitorMarker;
+    setShowVisitorMarker(newValue);
+    localStorage.setItem('showLocationMarkers', newValue ? 'true' : 'false');
+    
+    // Force reload to update the globe with or without markers
+    window.location.reload();
+  };
+  
+  // Reset visitor marker data (remove the 30-day marker)
+  const resetVisitorData = () => {
+    localStorage.removeItem('visitorLocation');
+    // Force reload to update the globe
+    window.location.reload();
   };
   
   return (
@@ -110,13 +130,38 @@ const GlobeControls = ({
             />
           </div>
           
-          <div className="flex items-center justify-between pt-2 border-t border-white/10">
-            <Label htmlFor="auto-rotate" className="text-xs text-indigo-200">Auto Rotate</Label>
-            <Switch 
-              id="auto-rotate"
-              checked={settings.autoRotate}
-              onCheckedChange={onAutoRotateChange}
-            />
+          <div className="pt-2 space-y-2 border-t border-white/10">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="auto-rotate" className="text-xs text-indigo-200">Auto Rotate</Label>
+              <Switch 
+                id="auto-rotate"
+                checked={settings.autoRotate}
+                onCheckedChange={onAutoRotateChange}
+              />
+            </div>
+            
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1">
+                <MapPin className="h-3 w-3 text-orange-400" />
+                <Label htmlFor="visitor-marker" className="text-xs text-indigo-200">Show Visitor Location</Label>
+              </div>
+              <Switch 
+                id="visitor-marker"
+                checked={showVisitorMarker}
+                onCheckedChange={toggleVisitorMarker}
+              />
+            </div>
+            
+            {/* Button to reset visitor data */}
+            {localStorage.getItem('visitorLocation') && (
+              <button
+                onClick={resetVisitorData}
+                className="flex items-center justify-center gap-1 w-full mt-2 py-1.5 px-2 text-xs bg-indigo-900/30 hover:bg-indigo-800/40 text-indigo-200 rounded-md transition-colors"
+              >
+                <RotateCcw className="h-3 w-3" />
+                Reset Visitor Data
+              </button>
+            )}
           </div>
         </div>
       )}
