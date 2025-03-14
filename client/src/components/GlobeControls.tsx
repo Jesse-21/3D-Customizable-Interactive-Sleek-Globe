@@ -3,7 +3,7 @@ import { GlobeSettings } from "@/hooks/useGlobeSettings";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { ChevronDown, ChevronUp } from "lucide-react";
+import { ChevronDown, ChevronUp, Settings } from "lucide-react";
 
 interface GlobeControlsProps {
   settings: GlobeSettings;
@@ -22,25 +22,35 @@ const GlobeControls = ({
   onGlobeSizeChange,
   onAutoRotateChange
 }: GlobeControlsProps) => {
-  const [isOpen, setIsOpen] = useState(true);
+  const [isOpen, setIsOpen] = useState(false);
   
   const toggleControls = () => {
     setIsOpen(!isOpen);
   };
   
   return (
-    <div className="fixed bottom-4 right-4 z-20 bg-[--control-bg] p-4 rounded-lg shadow-lg">
-      <div className="flex items-center justify-between mb-3">
-        <h3 className="text-sm font-medium">Globe Controls</h3>
-        <button onClick={toggleControls} className="text-white opacity-70 hover:opacity-100">
-          {isOpen ? <ChevronDown className="h-5 w-5" /> : <ChevronUp className="h-5 w-5" />}
+    <div className={`fixed bottom-4 right-4 z-20 ${isOpen ? 'bg-black/80 backdrop-blur-sm' : 'bg-black/50'} p-4 rounded-lg shadow-lg border border-white/20 transition-all duration-300`}>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Settings className="h-4 w-4 text-indigo-400" />
+          <h3 className="text-sm font-medium text-white">Globe Controls</h3>
+        </div>
+        <button 
+          onClick={toggleControls} 
+          className="text-white rounded-full p-1 hover:bg-white/10 transition-colors"
+          aria-label={isOpen ? "Close controls" : "Open controls"}
+        >
+          {isOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
         </button>
       </div>
       
       {isOpen && (
-        <div>
-          <div className="mb-3">
-            <Label htmlFor="rotation-speed" className="block text-xs mb-1">Rotation Speed</Label>
+        <div className="mt-4 space-y-4">
+          <div>
+            <div className="flex justify-between mb-1">
+              <Label htmlFor="rotation-speed" className="block text-xs text-indigo-200">Rotation Speed</Label>
+              <span className="text-xs text-white/70">{settings.rotationSpeed.toFixed(1)}</span>
+            </div>
             <Slider 
               id="rotation-speed"
               min={0}
@@ -52,8 +62,11 @@ const GlobeControls = ({
             />
           </div>
           
-          <div className="mb-3">
-            <Label htmlFor="mouse-sensitivity" className="block text-xs mb-1">Mouse Sensitivity</Label>
+          <div>
+            <div className="flex justify-between mb-1">
+              <Label htmlFor="mouse-sensitivity" className="block text-xs text-indigo-200">Mouse Sensitivity</Label>
+              <span className="text-xs text-white/70">{settings.mouseSensitivity}</span>
+            </div>
             <Slider 
               id="mouse-sensitivity"
               min={0}
@@ -65,8 +78,11 @@ const GlobeControls = ({
             />
           </div>
           
-          <div className="mb-3">
-            <Label htmlFor="dot-size" className="block text-xs mb-1">Dot Size</Label>
+          <div>
+            <div className="flex justify-between mb-1">
+              <Label htmlFor="dot-size" className="block text-xs text-indigo-200">Dot Size</Label>
+              <span className="text-xs text-white/70">{settings.dotSize.toFixed(2)}</span>
+            </div>
             <Slider 
               id="dot-size"
               min={0.1}
@@ -78,12 +94,15 @@ const GlobeControls = ({
             />
           </div>
           
-          <div className="mb-3">
-            <Label htmlFor="globe-size" className="block text-xs mb-1">Globe Size</Label>
+          <div>
+            <div className="flex justify-between mb-1">
+              <Label htmlFor="globe-size" className="block text-xs text-indigo-200">Globe Size</Label>
+              <span className="text-xs text-white/70">{settings.globeSize.toFixed(2)}</span>
+            </div>
             <Slider 
               id="globe-size"
               min={0.5}
-              max={1.5}
+              max={3}
               step={0.05}
               value={[settings.globeSize]}
               onValueChange={(value) => onGlobeSizeChange(value[0])}
@@ -91,14 +110,13 @@ const GlobeControls = ({
             />
           </div>
           
-          <div className="flex items-center mt-4">
+          <div className="flex items-center justify-between pt-2 border-t border-white/10">
+            <Label htmlFor="auto-rotate" className="text-xs text-indigo-200">Auto Rotate</Label>
             <Switch 
               id="auto-rotate"
               checked={settings.autoRotate}
               onCheckedChange={onAutoRotateChange}
-              className="mr-2"
             />
-            <Label htmlFor="auto-rotate" className="text-xs">Auto Rotate</Label>
           </div>
         </div>
       )}
