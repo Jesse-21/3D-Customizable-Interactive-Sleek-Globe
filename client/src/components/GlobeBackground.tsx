@@ -1,38 +1,17 @@
-import { useEffect, useRef, useState } from "react";
-import { GlobeSettings, RGBColor, LocationCoordinates } from "@/hooks/useGlobeSettings";
+import React, { useEffect, useRef, useState } from "react";
+import { GlobeSettings, LocationCoordinates } from "@/hooks/useGlobeSettings";
 import createGlobe from "cobe";
+
+// Define marker types for COBE that match exactly what the library expects
+interface LocationMarker {
+  location: [number, number];
+  size: number;
+  color: [number, number, number];
+  timestamp: number; // Our custom property for tracking when markers were added
+}
 
 interface GlobeBackgroundProps {
   settings: GlobeSettings;
-}
-
-// Define a marker object for visitor locations
-interface LocationMarker {
-  location: [number, number]; // [latitude, longitude]
-  size: number;
-  color: [number, number, number]; // RGB values normalized to 0-1
-  timestamp: number; // Used to track when the marker was added
-}
-
-// Define custom options for COBE
-interface CustomCOBEOptions {
-  devicePixelRatio: number;
-  width: number;
-  height: number;
-  phi: number;
-  theta: number;
-  dark: number;
-  diffuse: number;
-  mapSamples: number;
-  mapBrightness: number;
-  baseColor: [number, number, number];
-  markerColor: [number, number, number];
-  glowColor: [number, number, number];
-  scale: number;
-  pointSize?: number;
-  opacity?: number; // Add opacity option
-  markers: LocationMarker[];
-  onRender: (state: any) => void;
 }
 
 const GlobeBackground = ({ settings }: GlobeBackgroundProps) => {
@@ -193,7 +172,7 @@ const GlobeBackground = ({ settings }: GlobeBackgroundProps) => {
         // Maximum of 12 markers at any time
         if (visitorMarkers.length >= 12) {
           // Remove the oldest marker when we hit the limit
-          setVisitorMarkers(prev => prev.slice(1));
+          setVisitorMarkers((prev: LocationMarker[]) => prev.slice(1));
         }
         
         // Generate a new random location
@@ -217,7 +196,7 @@ const GlobeBackground = ({ settings }: GlobeBackgroundProps) => {
         };
         
         // Add the new marker to the existing set
-        setVisitorMarkers(prev => [...prev, newMarker]);
+        setVisitorMarkers((prev: LocationMarker[]) => [...prev, newMarker]);
       }, 5000 + Math.random() * 3000); // Random interval between 5-8 seconds
     }
     
@@ -244,25 +223,51 @@ const GlobeBackground = ({ settings }: GlobeBackgroundProps) => {
       // Using a fixed point size for consistency and visibility
       // This ensures the land dots are always visible at different screen sizes
       
-      // Set up COBE options
-      const options: CustomCOBEOptions = {
-        devicePixelRatio: 2, // Set fixed device pixel ratio for consistent quality
-        width: Math.min(window.innerWidth, 1200), // Limited width to avoid excessive details
-        height: Math.min(window.innerHeight, 1200), // Limited height to avoid excessive details
+      // Set up COBE options with default values that ensure the land dots are visible
+      // Setup the visible arcs if enabled
+      const arcs = settings.showArcs ? [
+        // Arc from headquarters to random locations
+        {
+          start: settings.headquartersLocation,
+          end: [40.7128, -74.0060], // New York
+          color: settings.arcColor,
+        },
+        {
+          start: settings.headquartersLocation,
+          end: [51.5074, -0.1278], // London
+          color: settings.arcColor,
+        },
+        {
+          start: settings.headquartersLocation,
+          end: [35.6762, 139.6503], // Tokyo
+          color: settings.arcColor,
+        },
+        {
+          start: settings.headquartersLocation,
+          end: [-33.8688, 151.2093], // Sydney
+          color: settings.arcColor,
+        }
+      ] : [];
+
+      const options = {
+        devicePixelRatio: window.devicePixelRatio || 2,
+        width: 800,
+        height: 800,
         phi: currentPhi,
         theta: currentTheta,
-        dark: 0.3, // Minimal darkness for better visibility of landmass
-        diffuse: 1.8, // Higher diffuse for better visibility of dots
-        mapSamples: 24000, // Higher sample count for better land definition
-        mapBrightness: 16.0, // Much higher brightness to ensure land dots are visible
-        baseColor: [...settings.landColor],
-        markerColor: [1, 0.8, 0.5], // Warm marker base
-        glowColor: [...settings.haloColor],
-        scale: settings.globeSize,
-        pointSize: 2.0, // Increased point size to ensure visibility
-        opacity: settings.opacity, // Use the opacity setting
+        dark: 0.85, // This sets the ocean/background color (higher = darker ocean)
+        diffuse: 1.8, // Higher value makes dots more visible
+        mapSamples: 40000, // Higher value shows more dots
+        mapBrightness: 20, // Higher value makes dots brighter
+        mapBasedOnGlitchEffect: settings.glitchEffect, // Use glitch effect if enabled
+        baseColor: settings.landColor, // Use user-selected land color for the land points
+        markerColor: [1, 0.5, 0.2] as [number, number, number], // Orange for visitor markers
+        glowColor: settings.haloColor, // Use user-selected halo color
+        scale: 1.2, // Slightly larger scale for better visibility
+        pointSize: settings.dotSize * 2.0, // User-controlled dot size
         markers: visitorMarkers,
-        onRender: (state) => {
+        arcs: arcs,
+        onRender: (state: any) => {
           // Auto rotation when not interacting
           if (settings.autoRotate && pointerInteracting.current === null) {
             // Apply rotation speed based on settings
@@ -381,7 +386,7 @@ const GlobeBackground = ({ settings }: GlobeBackgroundProps) => {
         left: 0, 
         width: "100%", 
         height: "100%", 
-        background: "linear-gradient(135deg, #060c21 0%, #0a0a2c 100%)",
+        background: "linear-gradient(135deg, #000000 0%, #050620 100%)",
         zIndex: 0,
         overflow: "hidden"
       }}
@@ -406,6 +411,8 @@ const GlobeBackground = ({ settings }: GlobeBackgroundProps) => {
       {/* Main globe canvas - with sized dimensions for better quality and control */}
       <canvas
         ref={canvasRef}
+        width={800}
+        height={800}
         style={{
           position: "absolute",
           top: `calc(50% + ${settings.offsetY}%)`,
@@ -415,7 +422,8 @@ const GlobeBackground = ({ settings }: GlobeBackgroundProps) => {
           height: `${Math.min(100, 90 * settings.globeSize)}vh`,
           cursor: "grab",
           touchAction: "none",
-          zIndex: 1
+          zIndex: 1,
+          opacity: settings.opacity
         }}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
