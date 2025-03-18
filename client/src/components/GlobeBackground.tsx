@@ -4,9 +4,16 @@ import createGlobe from "cobe";
 
 // Helper function to convert lat/long to 3D point for arc visualization
 function coordinatesToPoint(lat: number, lng: number, state: any, scale: number) {
+  // First validate the coordinates to ensure they're within valid range
+  // Latitude must be between -90 and 90
+  const validLat = Math.max(-90, Math.min(90, lat));
+  
+  // Longitude must be between -180 and 180
+  const validLng = ((lng + 540) % 360) - 180;
+  
   // Convert to radians
-  const phi = (90 - lat) * (Math.PI / 180);
-  const theta = (lng + 180) * (Math.PI / 180);
+  const phi = (90 - validLat) * (Math.PI / 180);
+  const theta = (validLng + 180) * (Math.PI / 180);
   
   // Calculate 3D position on the unit sphere, accounting for globe rotation
   const rotatedTheta = theta + state.phi;
@@ -121,6 +128,15 @@ const GlobeBackground = ({ settings }: GlobeBackgroundProps) => {
   const arcAnimationRef = useRef<number | null>(null);
   const ctx2dRef = useRef<CanvasRenderingContext2D | null>(null);
   
+  // Helper function to validate and normalize coordinates
+  const validateCoordinates = (lat: number, lng: number): [number, number] => {
+    // Constrain latitude to -85 to 85 degrees (avoid poles for better visibility)
+    const validLat = Math.max(-85, Math.min(85, lat));
+    // Constrain longitude to -180 to 180 degrees
+    const validLng = ((lng + 540) % 360) - 180;
+    return [validLat, validLng];
+  };
+  
   // Helper function to generate random coordinates biased toward populated areas
   const generateRandomVisitorLocation = (): LocationCoordinates => {
     // Simple approximation of populated areas by continent
@@ -166,19 +182,22 @@ const GlobeBackground = ({ settings }: GlobeBackgroundProps) => {
     let startLat, startLng, endLat, endLng;
     
     if (useHeadquarters) {
-      // Start from headquarters
-      [startLat, startLng] = settings.headquartersLocation;
+      // Start from headquarters with validated coordinates
+      [startLat, startLng] = validateCoordinates(
+        settings.headquartersLocation[0], 
+        settings.headquartersLocation[1]
+      );
       
-      // End at a random location
+      // End at a random location with validated coordinates
       const randomLocation = generateRandomVisitorLocation();
-      [endLat, endLng] = randomLocation;
+      [endLat, endLng] = validateCoordinates(randomLocation[0], randomLocation[1]);
     } else {
-      // Both start and end are random locations
+      // Both start and end are random locations with validated coordinates
       const randomLocation1 = generateRandomVisitorLocation();
       const randomLocation2 = generateRandomVisitorLocation();
       
-      [startLat, startLng] = randomLocation1;
-      [endLat, endLng] = randomLocation2;
+      [startLat, startLng] = validateCoordinates(randomLocation1[0], randomLocation1[1]);
+      [endLat, endLng] = validateCoordinates(randomLocation2[0], randomLocation2[1]);
     }
     
     // Create a slightly randomized color based on the base arc color
@@ -236,8 +255,14 @@ const GlobeBackground = ({ settings }: GlobeBackgroundProps) => {
       // Get current location if permission is granted
       navigator.geolocation.getCurrentPosition(
         (position) => {
+          // Validate coordinates before creating marker
+          const [validLat, validLng] = validateCoordinates(
+            position.coords.latitude,
+            position.coords.longitude
+          );
+          
           const newMarker: LocationMarker = {
-            location: [position.coords.latitude, position.coords.longitude],
+            location: [validLat, validLng],
             size: 0.1,
             color: [1, 0.5, 0], // Orange color for visitor dot
             timestamp: Date.now()
@@ -259,8 +284,14 @@ const GlobeBackground = ({ settings }: GlobeBackgroundProps) => {
           // Generate a random location biased by timezone
           const approximateLocation = generateRandomVisitorLocation();
           
+          // Validate approximate location coordinates
+          const [validLat, validLng] = validateCoordinates(
+            approximateLocation[0],
+            approximateLocation[1]
+          );
+          
           const newMarker: LocationMarker = {
-            location: approximateLocation, 
+            location: [validLat, validLng],
             size: 0.1,
             color: [1, 0.5, 0], // Orange color for visitor dot
             timestamp: Date.now()
@@ -285,6 +316,7 @@ const GlobeBackground = ({ settings }: GlobeBackgroundProps) => {
     
     // If glitch effect is enabled, set up the glitch timer
     if (settings.glitchEffect) {
+      console.log("Glitch effect enabled, setting up glitch timer");
       // Glitch effect timer - more advanced visual glitches
       glitchTimerRef.current = window.setInterval(() => {
         if (!canvasRef.current || !globeInstanceRef.current) return;
@@ -296,10 +328,12 @@ const GlobeBackground = ({ settings }: GlobeBackgroundProps) => {
         const glitchRandom = Math.random();
         
         // Don't glitch too frequently
-        if (now - lastGlitchTimeRef.current < 3000) return;
+        if (now - lastGlitchTimeRef.current < 2000) return;
         
-        // Only glitch occasionally (10% chance when checked)
-        if (glitchRandom > 0.1) return;
+        // Increased chance of glitch - 20% instead of 10%
+        if (glitchRandom > 0.2) return;
+        
+        console.log("Glitch effect triggered");
         
         lastGlitchTimeRef.current = now;
         
@@ -665,7 +699,27 @@ const GlobeBackground = ({ settings }: GlobeBackgroundProps) => {
               // Only draw up to current progress point
               ctx.beginPath();
               ctx.moveTo(startX, startY);
-              ctx.quadraticCurveTo(controlX, controlY, currentX, currentY);
+              
+              // Improved arc path drawing - always ensure arc stays on globe surface
+              // Use bezier curve instead of quadratic for better control of path
+              const cp1x = startX + (controlX - startX) * 0.5;
+              const cp1y = startY + (controlY - startY) * 0.8;
+              const cp2x = controlX + (endX - controlX) * 0.5;
+              const cp2y = controlY + (endY - controlY) * 0.8;
+              
+              // Calculate current point using cubic bezier
+              const t = progress;
+              const tSq = t * t;
+              const tCube = tSq * t;
+              const mt = 1 - t;
+              const mtSq = mt * mt;
+              const mtCube = mtSq * mt;
+              
+              const currX = mtCube * startX + 3 * mtSq * t * cp1x + 3 * mt * tSq * cp2x + tCube * endX;
+              const currY = mtCube * startY + 3 * mtSq * t * cp1y + 3 * mt * tSq * cp2y + tCube * endY;
+              
+              // Draw the curve using bezier
+              ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, currX, currY);
               
               // Get base color for the arc
               const [r, g, b] = arc.color;
