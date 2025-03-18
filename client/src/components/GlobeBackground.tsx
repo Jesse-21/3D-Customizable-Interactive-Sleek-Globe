@@ -297,10 +297,18 @@ const GlobeBackground = ({ settings }: GlobeBackgroundProps) => {
       return;
     }
     
-    // Initialize with a few arcs
+    // Initialize with a few arcs and setup the arc canvas
     if (connectionArcs.length === 0) {
       const initialArcs = Array.from({ length: 3 }, () => createNewConnectionArc());
       setConnectionArcs(initialArcs);
+      
+      // Set up the arc canvas dimensions
+      const arcCanvas = document.getElementById('arcs-canvas') as HTMLCanvasElement;
+      if (arcCanvas) {
+        arcCanvas.width = window.innerWidth;
+        arcCanvas.height = window.innerHeight;
+        ctx2dRef.current = arcCanvas.getContext('2d');
+      }
     }
     
     // Animation function for arcs
@@ -417,11 +425,6 @@ const GlobeBackground = ({ settings }: GlobeBackgroundProps) => {
           
           // Render data connection arcs if enabled
           if (settings.showArcs && connectionArcs.length > 0) {
-            // Get the 2D context if not already obtained
-            if (!ctx2dRef.current && canvasRef.current) {
-              ctx2dRef.current = canvasRef.current.getContext('2d');
-            }
-            
             const ctx = ctx2dRef.current;
             if (!ctx) return;
             
@@ -504,61 +507,9 @@ const GlobeBackground = ({ settings }: GlobeBackgroundProps) => {
     // Initialize the globe
     initGlobe();
     
-    // Add pointer interaction handlers
-    const onPointerDown = (e: PointerEvent) => {
-      pointerInteracting.current = e.clientX;
-      pointerInteractionMovement.current = e.clientX;
-      canvasRef.current?.style.setProperty('cursor', 'grabbing');
-    };
-    
-    const onPointerUp = () => {
-      pointerInteracting.current = null;
-      canvasRef.current?.style.setProperty('cursor', 'grab');
-    };
-    
-    const onPointerOut = () => {
-      pointerInteracting.current = null;
-      canvasRef.current?.style.setProperty('cursor', 'auto');
-    };
-    
-    const onPointerMove = (e: PointerEvent) => {
-      if (pointerInteracting.current !== null) {
-        pointerInteractionMovement.current = e.clientX;
-      }
-    };
-    
-    // Add touch handlers specially for mobile devices
-    const onTouchStart = (e: TouchEvent) => {
-      if (e.touches.length === 1) {
-        e.preventDefault();
-        pointerInteracting.current = e.touches[0].clientX;
-        pointerInteractionMovement.current = e.touches[0].clientX;
-      }
-    };
-    
-    const onTouchMove = (e: TouchEvent) => {
-      if (e.touches.length === 1 && pointerInteracting.current !== null) {
-        e.preventDefault();
-        pointerInteractionMovement.current = e.touches[0].clientX;
-      }
-    };
-    
-    const onTouchEnd = () => {
-      pointerInteracting.current = null;
-    };
-    
-    // Add event listeners
-    if (canvasRef.current) {
-      canvasRef.current.addEventListener('pointerdown', onPointerDown);
-      canvasRef.current.addEventListener('pointerup', onPointerUp);
-      canvasRef.current.addEventListener('pointerout', onPointerOut);
-      canvasRef.current.addEventListener('pointermove', onPointerMove);
-      
-      // Add touch-specific event listeners for better mobile support
-      canvasRef.current.addEventListener('touchstart', onTouchStart);
-      canvasRef.current.addEventListener('touchmove', onTouchMove, { passive: false });
-      canvasRef.current.addEventListener('touchend', onTouchEnd);
-    }
+    // We're now handling all pointer and touch events at the container level
+    // This provides better coordination between canvas layers
+    // No need to set up individual event listeners on the canvas anymore
     
     // Handle resize
     const handleResize = () => {
@@ -589,18 +540,7 @@ const GlobeBackground = ({ settings }: GlobeBackgroundProps) => {
     window.addEventListener('resize', handleResize);
     
     return () => {
-      // Cleanup event listeners
-      if (canvasRef.current) {
-        canvasRef.current.removeEventListener('pointerdown', onPointerDown);
-        canvasRef.current.removeEventListener('pointerup', onPointerUp);
-        canvasRef.current.removeEventListener('pointerout', onPointerOut);
-        canvasRef.current.removeEventListener('pointermove', onPointerMove);
-        
-        canvasRef.current.removeEventListener('touchstart', onTouchStart);
-        canvasRef.current.removeEventListener('touchmove', onTouchMove);
-        canvasRef.current.removeEventListener('touchend', onTouchEnd);
-      }
-      
+      // Only need to remove the resize listener since pointer events are now handled via React
       window.removeEventListener('resize', handleResize);
       
       // Clean up globe instance
@@ -624,16 +564,72 @@ const GlobeBackground = ({ settings }: GlobeBackgroundProps) => {
     };
   }, [settings, visitorMarkers]); // Re-create when settings or markers change
   
+  // Create an event handler for the container that manages all pointer events
+  const handleContainerPointerEvents = (e: React.PointerEvent) => {
+    // If this is a pointerdown event, start the interaction
+    if (e.type === 'pointerdown') {
+      pointerInteracting.current = e.clientX;
+      pointerInteractionMovement.current = e.clientX;
+      
+      // Set cursor to indicate grabbing
+      if (canvasRef.current) {
+        canvasRef.current.style.setProperty('cursor', 'grabbing');
+      }
+    } 
+    // If this is a pointerup or pointerleave event, end the interaction
+    else if (e.type === 'pointerup' || e.type === 'pointerleave') {
+      pointerInteracting.current = null;
+      
+      // Reset cursor
+      if (canvasRef.current) {
+        canvasRef.current.style.setProperty('cursor', e.type === 'pointerleave' ? 'auto' : 'grab');
+      }
+    } 
+    // If this is a pointermove event, update the interaction if active
+    else if (e.type === 'pointermove' && pointerInteracting.current !== null) {
+      pointerInteractionMovement.current = e.clientX;
+    }
+  };
+  
+  // Handle touch events for mobile devices
+  const handleContainerTouchEvents = (e: React.TouchEvent) => {
+    // Touch start
+    if (e.type === 'touchstart' && e.touches.length === 1) {
+      e.preventDefault();
+      pointerInteracting.current = e.touches[0].clientX;
+      pointerInteractionMovement.current = e.touches[0].clientX;
+    } 
+    // Touch move
+    else if (e.type === 'touchmove' && e.touches.length === 1 && pointerInteracting.current !== null) {
+      e.preventDefault();
+      pointerInteractionMovement.current = e.touches[0].clientX;
+    } 
+    // Touch end
+    else if (e.type === 'touchend') {
+      pointerInteracting.current = null;
+    }
+  };
+
   return (
-    <div style={{ 
-      position: "fixed", 
-      top: 0, 
-      left: 0, 
-      width: "100%", 
-      height: "100%", 
-      background: "#050818",
-      zIndex: 0 
-    }}>
+    <div 
+      style={{ 
+        position: "fixed", 
+        top: 0, 
+        left: 0, 
+        width: "100%", 
+        height: "100%", 
+        background: "#050818",
+        zIndex: 0,
+        overflow: "hidden"
+      }}
+      onPointerDown={handleContainerPointerEvents}
+      onPointerMove={handleContainerPointerEvents}
+      onPointerUp={handleContainerPointerEvents}
+      onPointerLeave={handleContainerPointerEvents}
+      onTouchStart={handleContainerTouchEvents}
+      onTouchMove={handleContainerTouchEvents}
+      onTouchEnd={handleContainerTouchEvents}
+    >
       {/* Main globe canvas */}
       <canvas
         ref={canvasRef}
@@ -652,6 +648,15 @@ const GlobeBackground = ({ settings }: GlobeBackgroundProps) => {
       {/* Separate canvas for arc visualizations */}
       <canvas
         id="arcs-canvas"
+        ref={(el) => {
+          // Update the second canvas context reference
+          if (el) {
+            ctx2dRef.current = el.getContext('2d');
+            // Ensure the canvas is the right size
+            el.width = window.innerWidth;
+            el.height = window.innerHeight;
+          }
+        }}
         style={{
           position: "absolute",
           top: 0,

@@ -62,14 +62,14 @@ export default function Home() {
           <p className="text-lg mb-8 text-white/80 leading-relaxed">
             This demo showcases an oversized, interactive 3D dot globe that functions as a website background.
             The globe responds to mouse movements while your website content remains in the foreground.
-            <span className="block mt-2 text-indigo-300">Your visitor's location is marked with an orange dot that persists for 30 days.</span>
+            <span className="block mt-2 text-indigo-300"><strong>Optional:</strong> Your visitor's location is marked with an orange dot that persists for 30 days.</span>
           </p>
           <div className="flex flex-col sm:flex-row gap-4">
             <a href="#download" className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-medium py-2 px-6 rounded-lg hover:opacity-90 transition duration-200 text-center">
               Download For Your Site
             </a>
             <button 
-              onClick={() => document.querySelector('.controls-toggle')?.scrollIntoView({ behavior: 'smooth' })}
+              onClick={() => document.getElementById('customize-settings')?.scrollIntoView({ behavior: 'smooth' })}
               className="border border-white/20 py-2 px-6 rounded-lg hover:bg-white/5 transition duration-200"
             >
               Customize Settings
@@ -162,21 +162,23 @@ export default function Home() {
         Built with React, TypeScript, Tailwind CSS and COBE
       </footer>
       
-      <GlobeControls 
-        settings={settings}
-        onRotationSpeedChange={updateRotationSpeed}
-        onMouseSensitivityChange={updateMouseSensitivity}
-        onDotSizeChange={updateDotSize}
-        onGlobeSizeChange={updateGlobeSize}
-        onAutoRotateChange={updateAutoRotate}
-        onLandColorChange={updateLandColor}
-        onHaloColorChange={updateHaloColor}
-        onGlitchEffectChange={updateGlitchEffect}
-        onShowArcsChange={updateShowArcs}
-        onArcColorChange={updateArcColor}
-        onHeadquartersLocationChange={updateHeadquartersLocation}
-        onShowVisitorMarkersChange={updateShowVisitorMarkers}
-      />
+      <div id="customize-settings" className="controls-toggle">
+        <GlobeControls 
+          settings={settings}
+          onRotationSpeedChange={updateRotationSpeed}
+          onMouseSensitivityChange={updateMouseSensitivity}
+          onDotSizeChange={updateDotSize}
+          onGlobeSizeChange={updateGlobeSize}
+          onAutoRotateChange={updateAutoRotate}
+          onLandColorChange={updateLandColor}
+          onHaloColorChange={updateHaloColor}
+          onGlitchEffectChange={updateGlitchEffect}
+          onShowArcsChange={updateShowArcs}
+          onArcColorChange={updateArcColor}
+          onHeadquartersLocationChange={updateHeadquartersLocation}
+          onShowVisitorMarkersChange={updateShowVisitorMarkers}
+        />
+      </div>
     </>
   );
 }
