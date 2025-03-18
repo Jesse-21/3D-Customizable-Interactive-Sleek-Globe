@@ -10,4 +10,41 @@
   body {
     @apply font-sans antialiased bg-background text-foreground;
   }
+  
+  /* Globe Glitch Effect Animations */
+  @keyframes scanlines {
+    0% {
+      background-position: 0 0;
+    }
+    100% {
+      background-position: 0 2px;
+    }
+  }
+  
+  @keyframes flicker {
+    0% {
+      opacity: 0.9;
+    }
+    5% {
+      opacity: 0.7;
+    }
+    10% {
+      opacity: 0.9;
+    }
+    15% {
+      opacity: 0.7;
+    }
+    20% {
+      opacity: 0.9;
+    }
+    55% {
+      opacity: 0.7;
+    }
+    60% {
+      opacity: 0.9;
+    }
+    100% {
+      opacity: 0.9;
+    }
+  }
 }

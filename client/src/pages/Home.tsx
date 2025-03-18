@@ -1,28 +1,11 @@
 import GlobeBackground from "@/components/GlobeBackground";
-import GlobeControls from "@/components/GlobeControls";
 import DownloadPackage from "@/components/DownloadPackage";
-import { useGlobeSettings, RGBColor, LocationCoordinates } from "@/hooks/useGlobeSettings";
-import { GlobeIcon, Github, Zap, Eye } from "lucide-react";
+import { useGlobeSettings } from "@/hooks/useGlobeSettings";
+import { GlobeIcon, Github, Zap, Eye, Settings } from "lucide-react";
 import { Link } from "wouter";
 
 export default function Home() {
-  const {
-    settings,
-    updateRotationSpeed,
-    updateMouseSensitivity,
-    updateDotSize,
-    updateGlobeSize,
-    updateAutoRotate,
-    updateLandColor,
-    updateHaloColor,
-    updateGlitchEffect,
-    updateShowArcs,
-    updateArcColor,
-    updateHeadquartersLocation,
-    updateShowVisitorMarkers,
-    updateOffsetX,
-    updateOffsetY
-  } = useGlobeSettings();
+  const { settings } = useGlobeSettings();
   
   return (
     <>
@@ -80,12 +63,12 @@ export default function Home() {
             <a href="#download" className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-medium py-2 px-6 rounded-lg hover:opacity-90 transition duration-200 text-center">
               Download For Your Site
             </a>
-            <button 
-              onClick={() => document.getElementById('customize-settings')?.scrollIntoView({ behavior: 'smooth' })}
-              className="border border-white/20 py-2 px-6 rounded-lg hover:bg-white/5 transition duration-200"
-            >
-              Customize Settings
-            </button>
+            <Link href="/settings">
+              <button className="border border-white/20 py-2 px-6 rounded-lg hover:bg-white/5 transition duration-200 flex items-center justify-center gap-2">
+                <Settings className="h-4 w-4" />
+                <span>Customize Settings</span>
+              </button>
+            </Link>
           </div>
           
           <div className="mt-10 grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -166,6 +149,21 @@ export default function Home() {
               </div>
             </div>
           </div>
+          
+          {/* Customize Globe section at the end of the landing page */}
+          <div id="customize-section" className="mt-16 pt-6 border-t border-white/10">
+            <h2 className="text-2xl font-bold mb-6 text-white">Customize Your Globe</h2>
+            <p className="text-white/70 mb-6">
+              Want to personalize your globe? Visit our dedicated settings page to adjust colors, 
+              animation effects, and interactive behaviors to match your website's design.
+            </p>
+            <Link href="/settings">
+              <button className="flex items-center gap-2 text-white font-medium bg-gradient-to-r from-indigo-600 to-purple-600 py-2.5 px-6 rounded-lg hover:opacity-90 transition duration-200">
+                <Settings className="h-5 w-5" />
+                <span>Customize Globe Settings</span>
+              </button>
+            </Link>
+          </div>
         </div>
       </div>
       
@@ -173,26 +171,6 @@ export default function Home() {
       <footer className="relative z-10 w-full text-center py-6 mt-8 text-white/50 text-sm">
         Built with React, TypeScript, Tailwind CSS and COBE
       </footer>
-      
-      <div id="customize-settings" className="controls-toggle">
-        <GlobeControls 
-          settings={settings}
-          onRotationSpeedChange={updateRotationSpeed}
-          onMouseSensitivityChange={updateMouseSensitivity}
-          onDotSizeChange={updateDotSize}
-          onGlobeSizeChange={updateGlobeSize}
-          onAutoRotateChange={updateAutoRotate}
-          onLandColorChange={updateLandColor}
-          onHaloColorChange={updateHaloColor}
-          onGlitchEffectChange={updateGlitchEffect}
-          onShowArcsChange={updateShowArcs}
-          onArcColorChange={updateArcColor}
-          onHeadquartersLocationChange={updateHeadquartersLocation}
-          onShowVisitorMarkersChange={updateShowVisitorMarkers}
-          onOffsetXChange={updateOffsetX}
-          onOffsetYChange={updateOffsetY}
-        />
-      </div>
     </>
   );
 }

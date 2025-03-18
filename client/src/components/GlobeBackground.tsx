@@ -8,30 +8,48 @@ function coordinatesToPoint(lat: number, lng: number, state: any, scale: number)
   const phi = (90 - lat) * (Math.PI / 180);
   const theta = (lng + 180) * (Math.PI / 180);
   
-  // Calculate normalized 3D position on the unit sphere
-  const nx = -Math.sin(phi) * Math.cos(theta + state.phi);
+  // Calculate 3D position on the unit sphere, accounting for globe rotation
+  const rotatedTheta = theta + state.phi;
+  const nx = -Math.sin(phi) * Math.cos(rotatedTheta);
   const ny = Math.cos(phi);
-  const nz = Math.sin(phi) * Math.sin(theta + state.phi);
+  const nz = Math.sin(phi) * Math.sin(rotatedTheta);
+  
+  // Get the normalized vector to use for precise surface point calculation
+  const norm = Math.sqrt(nx*nx + ny*ny + nz*nz);
+  const normalizedX = nx / norm;
+  const normalizedY = ny / norm;
+  const normalizedZ = nz / norm;
   
   // Check if point is visible (in front of the globe)
-  if (nz < 0) return null;
+  // Use a slightly more forgiving check to ensure connected arcs don't suddenly disappear
+  if (normalizedZ < -0.2) return null;
   
   // Calculate the center of the screen
   const centerX = window.innerWidth / 2;
   const centerY = window.innerHeight / 2;
   
-  // Adjust projection factor based on globe scale
-  // This ensures points stay on the surface as the globe size changes
-  const projectionFactor = 100 * Math.max(1, scale / 1.2);
+  // Account for any offsetX and offsetY settings for globe positioning
+  const offsetX = window.innerWidth * (state.offsetX || 0) / 100;
+  const offsetY = window.innerHeight * (state.offsetY || 0) / 100;
   
-  // Scale coordinates by the globe scale value
-  const x = nx * scale;
-  const y = ny * scale;
+  // Adjust projection factor based on globe scale and distance from center
+  // This ensures points stay precisely on the surface as the globe size changes
+  const baseFactor = 110;
+  const perspectiveFactor = Math.max(1, scale);
   
-  // Project 3D point to 2D screen, centered in viewport
+  // Apply perspective correction - points further from center need more projection
+  // The 0.25 factor reduces the effect to avoid extreme distortion
+  const distanceCorrection = 1 + (0.25 * (1 - normalizedZ));
+  const projectionFactor = baseFactor * perspectiveFactor * distanceCorrection;
+  
+  // Calculate final screen position
+  const screenX = centerX + offsetX + (normalizedX * scale * projectionFactor);
+  const screenY = centerY + offsetY + (normalizedY * scale * projectionFactor);
+  
   return {
-    x: centerX + x * projectionFactor,
-    y: centerY + y * projectionFactor
+    x: screenX,
+    y: screenY,
+    z: normalizedZ // Return z for depth ordering if needed
   };
 }
 
@@ -267,29 +285,106 @@ const GlobeBackground = ({ settings }: GlobeBackgroundProps) => {
     
     // If glitch effect is enabled, set up the glitch timer
     if (settings.glitchEffect) {
-      // Glitch effect timer
+      // Glitch effect timer - more advanced visual glitches
       glitchTimerRef.current = window.setInterval(() => {
         if (!canvasRef.current || !globeInstanceRef.current) return;
         
-        // Only glitch occasionally and randomly
-        if (Math.random() > 0.1) return;
-        
         // Calculate time since last glitch to avoid too frequent glitches
         const now = Date.now();
-        if (now - lastGlitchTimeRef.current < 2000) return;
+        
+        // Random chance of different types of glitches
+        const glitchRandom = Math.random();
+        
+        // Don't glitch too frequently
+        if (now - lastGlitchTimeRef.current < 3000) return;
+        
+        // Only glitch occasionally (10% chance when checked)
+        if (glitchRandom > 0.1) return;
+        
         lastGlitchTimeRef.current = now;
         
-        // Create a temporary color distortion
-        const glitchDuration = 100 + Math.random() * 300; // 100-400ms glitch
+        // Determine glitch type based on random value
+        const glitchType = Math.floor(Math.random() * 3); // 0, 1, or 2
+        
+        // Duration varies by glitch type
+        let glitchDuration;
+        
+        if (glitchType === 0) {
+          // Short color flash (80-150ms)
+          glitchDuration = 80 + Math.random() * 70;
+        } else if (glitchType === 1) {
+          // Medium disruption (150-300ms)
+          glitchDuration = 150 + Math.random() * 150;
+        } else {
+          // Major glitch (300-500ms)
+          glitchDuration = 300 + Math.random() * 200;
+        }
         
         // Apply the glitch by reinitializing the globe with distorted settings
         try {
+          // Store canvas position before glitch
+          const canvasStyle = canvasRef.current.style.cssText;
+          const arcsCanvas = document.getElementById('arcs-canvas') as HTMLCanvasElement;
+          const arcsStyle = arcsCanvas ? arcsCanvas.style.cssText : '';
+          
           // Store the current cleanup function
           const cleanup = globeInstanceRef.current;
           
           // Create a new instance to cause a visual "glitch"
           if (typeof cleanup === 'function') {
             cleanup();
+            
+            // Add visual disruption effects based on glitch type
+            if (glitchType >= 1) {
+              // For medium and major glitches, add position offset
+              const glitchOffset = glitchType === 1 ? 5 : 10;
+              const xOffset = (Math.random() * glitchOffset * 2) - glitchOffset;
+              const yOffset = (Math.random() * glitchOffset * 2) - glitchOffset;
+              
+              if (canvasRef.current) {
+                canvasRef.current.style.transform = `translate(calc(-50% + ${xOffset}px), calc(-50% + ${yOffset}px))`;
+              }
+              
+              if (arcsCanvas) {
+                arcsCanvas.style.transform = `translate(calc(-50% + ${xOffset}px), calc(-50% + ${yOffset}px))`;
+              }
+            }
+            
+            // For major glitches, temporarily add visual artifacts
+            if (glitchType === 2) {
+              // Add scan lines effect to the canvas container
+              const container = canvasRef.current.parentElement;
+              if (container) {
+                const scanLinesElement = document.createElement('div');
+                scanLinesElement.id = 'glitch-scanlines';
+                scanLinesElement.style.cssText = `
+                  position: absolute;
+                  top: 0;
+                  left: 0;
+                  width: 100%;
+                  height: 100%;
+                  background: repeating-linear-gradient(
+                    to bottom,
+                    rgba(0, 0, 0, 0),
+                    rgba(0, 0, 0, 0) 1px,
+                    rgba(150, 210, 255, 0.15) 1px,
+                    rgba(150, 210, 255, 0.15) 2px
+                  );
+                  z-index: 10;
+                  pointer-events: none;
+                  animation: scanlines 0.1s linear infinite;
+                `;
+                container.appendChild(scanLinesElement);
+                
+                // Remove the scan lines after the glitch
+                setTimeout(() => {
+                  const element = document.getElementById('glitch-scanlines');
+                  if (element && element.parentNode) {
+                    element.parentNode.removeChild(element);
+                  }
+                }, glitchDuration);
+              }
+            }
             
             // Force a small delay before recreating
             setTimeout(() => {
@@ -299,6 +394,12 @@ const GlobeBackground = ({ settings }: GlobeBackgroundProps) => {
                 // Restore normal appearance after the glitch duration
                 setTimeout(() => {
                   if (canvasRef.current) {
+                    // Restore original styles
+                    canvasRef.current.style.cssText = canvasStyle;
+                    if (arcsCanvas) {
+                      arcsCanvas.style.cssText = arcsStyle;
+                    }
+                    
                     // Only reinitialize if glitch effect is still enabled
                     if (settings.glitchEffect) {
                       const cleanup = globeInstanceRef.current;
@@ -315,13 +416,19 @@ const GlobeBackground = ({ settings }: GlobeBackgroundProps) => {
         } catch (e) {
           console.error("Error during glitch effect:", e);
         }
-      }, 5000); // Check for glitch opportunity every 5 seconds
+      }, 4000); // Check for glitch opportunity every 4 seconds
     }
     
     return () => {
       if (glitchTimerRef.current !== null) {
         clearInterval(glitchTimerRef.current);
         glitchTimerRef.current = null;
+      }
+      
+      // Clean up any remaining effects
+      const scanlines = document.getElementById('glitch-scanlines');
+      if (scanlines && scanlines.parentNode) {
+        scanlines.parentNode.removeChild(scanlines);
       }
     };
   }, [settings.glitchEffect, settings.landColor]);
@@ -489,6 +596,10 @@ const GlobeBackground = ({ settings }: GlobeBackgroundProps) => {
           state.theta = currentTheta;
           thetaRef.current = currentTheta;
           
+          // Update state with the current offset values
+          state.offsetX = settings.offsetX || 0;
+          state.offsetY = settings.offsetY || 0;
+          
           // Render data connection arcs if enabled
           if (settings.showArcs && connectionArcs.length > 0) {
             const ctx = ctx2dRef.current;
@@ -497,84 +608,102 @@ const GlobeBackground = ({ settings }: GlobeBackgroundProps) => {
             // Clear previous arcs
             ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
             
-            // Draw each connection arc
-            connectionArcs.forEach(arc => {
-              // Calculate current position along the arc based on progress
-              const progress = arc.progress;
-              
-              // Calculate points in 3D space - these are guaranteed to be on the globe surface
+            // Sort arcs by z-index so closer arcs are drawn on top
+            // Create an array with both arc data and their endpoints to sort
+            const arcsWithPoints = connectionArcs.map(arc => {
               const fromPoint = coordinatesToPoint(arc.startLat, arc.startLng, state, options.scale);
               const toPoint = coordinatesToPoint(arc.endLat, arc.endLng, state, options.scale);
+              return { arc, fromPoint, toPoint };
+            })
+            .filter(item => item.fromPoint && item.toPoint) // Only keep visible arcs
+            // Sort by average z value - higher values (closer to viewer) drawn last
+            .sort((a, b) => {
+              if (!a.fromPoint?.z || !b.fromPoint?.z) return 0;
+              const avgZA = ((a.fromPoint?.z || 0) + (a.toPoint?.z || 0)) / 2;
+              const avgZB = ((b.fromPoint?.z || 0) + (b.toPoint?.z || 0)) / 2;
+              return avgZA - avgZB; // Draw back-to-front (painters algorithm)
+            });
+            
+            // Draw each connection arc in sorted order
+            arcsWithPoints.forEach(({ arc, fromPoint, toPoint }) => {
+              // These points are guaranteed to exist due to the filter above
+              if (!fromPoint || !toPoint) return;
               
-              // Draw arc using quadratic curve, but only if both points are visible (not behind the globe)
-              if (fromPoint && toPoint) {
-                const startX = fromPoint.x;
-                const startY = fromPoint.y;
-                const endX = toPoint.x;
-                const endY = toPoint.y;
-                
-                // Calculate control point (arc peak)
-                const controlX = (startX + endX) / 2;
-                
-                // Calculate distance between points to make arc height proportional
-                const distance = Math.sqrt(Math.pow(endX - startX, 2) + Math.pow(endY - startY, 2));
-                
-                // Dynamically scale arc height based on distance and globe size
-                // This ensures the arc scales proportionally when globe size changes
-                const arcHeight = Math.min(Math.max(distance * 0.35, 50 * settings.globeSize), 
-                                          250 * settings.globeSize);
-                
-                // Place the control point higher up relative to the points
-                // Use the minimum Y value to ensure arcs curve upward
-                const controlY = Math.min(startY, endY) - arcHeight;
-                
-                // Calculate current point along the path based on progress
-                const currentX = quadraticBezier(progress, startX, controlX, endX);
-                const currentY = quadraticBezier(progress, startY, controlY, endY);
-                
-                // Only draw up to current progress point
-                ctx.beginPath();
-                ctx.moveTo(startX, startY);
-                ctx.quadraticCurveTo(controlX, controlY, currentX, currentY);
-                
-                // Get base color for the arc
-                const [r, g, b] = arc.color;
-                
-                // Bullet tracer effect - bright constant color
-                const brightR = Math.min(255, Math.round(r * 255 * 1.5));
-                const brightG = Math.min(255, Math.round(g * 255 * 1.5));
-                const brightB = Math.min(255, Math.round(b * 255 * 1.5));
-                
-                // Calculate trail opacity based on progress
-                // Fade out the tail while keeping the leading edge bright
-                // This creates a fading trail effect behind the "bullet"
-                const trailOpacity = Math.max(0.1, 1 - progress);
-                
-                // Add subtle glow for visibility
-                ctx.shadowColor = `rgba(${brightR}, ${brightG}, ${brightB}, 0.6)`;
-                ctx.shadowBlur = 4 * settings.globeSize;
-                
-                // Draw the arc with fading trail effect
-                const gradient = ctx.createLinearGradient(startX, startY, currentX, currentY);
-                gradient.addColorStop(0, `rgba(${brightR}, ${brightG}, ${brightB}, ${trailOpacity * 0.3})`); // Start faded
-                gradient.addColorStop(0.7, `rgba(${brightR}, ${brightG}, ${brightB}, ${trailOpacity * 0.7})`); // Middle brighter
-                gradient.addColorStop(1, `rgba(${brightR}, ${brightG}, ${brightB}, 0.9)`); // End brightest
-                
-                ctx.strokeStyle = gradient;
-                ctx.lineWidth = 2 * settings.globeSize; // Line width scaled with globe size
-                ctx.stroke();
-                
-                // Remove shadow for bullet dot
-                ctx.shadowColor = 'transparent';
-                ctx.shadowBlur = 0;
-                
-                // Draw "bullet" dot at the current position 
-                const dotSize = 3 * settings.globeSize;
-                ctx.beginPath();
-                ctx.arc(currentX, currentY, dotSize, 0, Math.PI * 2);
-                ctx.fillStyle = `rgb(${brightR}, ${brightG}, ${brightB})`;
-                ctx.fill();
-              }
+              const progress = arc.progress;
+              const startX = fromPoint.x;
+              const startY = fromPoint.y;
+              const endX = toPoint.x;
+              const endY = toPoint.y;
+              
+              // Calculate mid-point between start and end positions for control
+              const midX = (startX + endX) / 2;
+              const midY = (startY + endY) / 2;
+              
+              // Calculate distance between points to make arc height proportional
+              const distance = Math.sqrt(Math.pow(endX - startX, 2) + Math.pow(endY - startY, 2));
+              
+              // Dynamically scale arc height based on distance and globe size
+              // This ensures the arc scales proportionally when globe size changes
+              const arcHeight = Math.min(Math.max(distance * 0.35, 50 * settings.globeSize), 
+                                        250 * settings.globeSize);
+              
+              // Calculate control point for the arc curve
+              // We use the mid-point and adjust height based on the z-position
+              // This makes arcs curve toward viewer when in front, away when behind
+              const zAvg = ((fromPoint.z || 0) + (toPoint.z || 0)) / 2;
+              const heightAdjust = 1 + (zAvg * 0.3); // Higher z = more curve
+              
+              // Calculate the control point for the quadratic curve
+              // Adjust vertical position to create proper arc
+              const controlX = midX;
+              const controlY = midY - (arcHeight * heightAdjust);
+              
+              // Calculate current point along the curve based on progress
+              const currentX = quadraticBezier(progress, startX, controlX, endX);
+              const currentY = quadraticBezier(progress, startY, controlY, endY);
+              
+              // Only draw up to current progress point
+              ctx.beginPath();
+              ctx.moveTo(startX, startY);
+              ctx.quadraticCurveTo(controlX, controlY, currentX, currentY);
+              
+              // Get base color for the arc
+              const [r, g, b] = arc.color;
+              
+              // Bullet tracer effect - bright constant color
+              const brightR = Math.min(255, Math.round(r * 255 * 1.5));
+              const brightG = Math.min(255, Math.round(g * 255 * 1.5));
+              const brightB = Math.min(255, Math.round(b * 255 * 1.5));
+              
+              // Adjust opacity based on progress and z-position
+              // Arcs further from viewer (lower z) should be more transparent
+              const zFactor = Math.max(0.5, Math.min(1, 0.5 + fromPoint.z)); 
+              const trailOpacity = Math.max(0.1, (1 - progress) * zFactor);
+              
+              // Add subtle glow for visibility - stronger for foreground arcs
+              ctx.shadowColor = `rgba(${brightR}, ${brightG}, ${brightB}, ${0.5 * zFactor})`;
+              ctx.shadowBlur = 4 * settings.globeSize * zFactor;
+              
+              // Draw the arc with fading trail effect
+              const gradient = ctx.createLinearGradient(startX, startY, currentX, currentY);
+              gradient.addColorStop(0, `rgba(${brightR}, ${brightG}, ${brightB}, ${trailOpacity * 0.3})`); // Start faded
+              gradient.addColorStop(0.7, `rgba(${brightR}, ${brightG}, ${brightB}, ${trailOpacity * 0.7})`); // Middle brighter
+              gradient.addColorStop(1, `rgba(${brightR}, ${brightG}, ${brightB}, ${0.9 * zFactor})`); // End brightest
+              
+              ctx.strokeStyle = gradient;
+              ctx.lineWidth = 2 * settings.globeSize * zFactor; // Line width scaled with globe size
+              ctx.stroke();
+              
+              // Remove shadow for bullet dot
+              ctx.shadowColor = 'transparent';
+              ctx.shadowBlur = 0;
+              
+              // Draw "bullet" dot at the current position 
+              const dotSize = 3 * settings.globeSize * zFactor;
+              ctx.beginPath();
+              ctx.arc(currentX, currentY, dotSize, 0, Math.PI * 2);
+              ctx.fillStyle = `rgb(${brightR}, ${brightG}, ${brightB})`;
+              ctx.fill();
             });
           }
         }
@@ -792,15 +921,15 @@ const GlobeBackground = ({ settings }: GlobeBackgroundProps) => {
         id="logo-container"
       />
       
-      {/* Enhanced glow effect layer */}
+      {/* Enhanced glow effect layer that scales with globe size */}
       <div
         style={{
           position: "absolute",
           top: `calc(50% + ${settings.offsetY}%)`,
           left: `calc(50% + ${settings.offsetX}%)`,
           transform: "translate(-50%, -50%)",
-          width: "90vh", 
-          height: "90vh", 
+          width: `${90 * settings.globeSize}vh`, 
+          height: `${90 * settings.globeSize}vh`, 
           borderRadius: "50%",
           background: "radial-gradient(circle, rgba(30,100,200,0.2) 0%, rgba(10,60,180,0.08) 50%, rgba(0,0,0,0) 70%)",
           boxShadow: "0 0 150px 20px rgba(30,70,180,0.12)",
