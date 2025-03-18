@@ -17,7 +17,7 @@ interface GlobeBackgroundProps {
 const GlobeBackground = ({ settings }: GlobeBackgroundProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const pointerInteracting = useRef<number | null>(null);
-  const pointerInteractionMovement = useRef(0);
+  const pointerInteractionMovement = useRef<number>(0);
   const phiRef = useRef(0);
   const thetaRef = useRef(0);
   
@@ -255,8 +255,8 @@ const GlobeBackground = ({ settings }: GlobeBackgroundProps) => {
       // Complete COBE setup with proper rotation
       const options = {
         devicePixelRatio: window.devicePixelRatio || 2,
-        width: 800, 
-        height: 800,
+        width: 1000,  // Increased canvas size for better resolution
+        height: 1000, // Increased canvas size for better resolution
         phi: currentPhi,
         theta: currentTheta,
         dark: 1,
@@ -280,9 +280,9 @@ const GlobeBackground = ({ settings }: GlobeBackgroundProps) => {
           
           // Auto rotation when not interacting
           if (settings.autoRotate && pointerInteracting.current === null) {
-            // Apply rotation speed based on settings
-            const rotationFactor = settings.rotationSpeed / 100;
-            state.phi += rotationFactor;
+            // Apply very slow rotation speed based on settings for a subtle effect
+            const rotationFactor = settings.rotationSpeed / 500;
+            phiRef.current += rotationFactor;
           }
           
           // Update both phi and theta for proper rotation
@@ -338,7 +338,7 @@ const GlobeBackground = ({ settings }: GlobeBackgroundProps) => {
   // Handle pointer interaction with both horizontal and vertical rotation
   const handlePointerDown = (e: React.PointerEvent) => {
     pointerInteracting.current = e.clientX;
-    pointerInteractionMovement.current = 0;
+    pointerInteractionMovement.current = e.clientY;
     if (canvasRef.current) {
       canvasRef.current.style.cursor = 'grabbing';
     }
@@ -414,7 +414,7 @@ const GlobeBackground = ({ settings }: GlobeBackgroundProps) => {
         width: "100%", 
         height: "100%", 
         background: "linear-gradient(135deg, #000000 0%, #050620 100%)",
-        zIndex: 0,
+        zIndex: -1,
         overflow: "hidden"
       }}
     >
@@ -425,8 +425,8 @@ const GlobeBackground = ({ settings }: GlobeBackgroundProps) => {
           top: `calc(50% + ${settings.offsetY}%)`,
           left: `calc(50% + ${settings.offsetX}%)`,
           transform: "translate(-50%, -50%)",
-          width: `${Math.min(100, 70 * settings.globeSize)}vh`, 
-          height: `${Math.min(100, 70 * settings.globeSize)}vh`, 
+          width: `${Math.min(90, 60 * settings.globeSize)}vh`, 
+          height: `${Math.min(90, 60 * settings.globeSize)}vh`, 
           borderRadius: "50%",
           background: "radial-gradient(circle, rgba(40,120,220,0.15) 0%, rgba(20,80,200,0.08) 40%, rgba(0,0,0,0) 70%)",
           boxShadow: "0 0 120px 15px rgba(30,70,180,0.1)",
@@ -438,15 +438,15 @@ const GlobeBackground = ({ settings }: GlobeBackgroundProps) => {
       {/* Main globe canvas */}
       <canvas
         ref={canvasRef}
-        width={800}
-        height={800}
+        width={1000}
+        height={1000}
         style={{
           position: "absolute",
           top: `calc(50% + ${settings.offsetY}%)`,
           left: `calc(50% + ${settings.offsetX}%)`,
           transform: "translate(-50%, -50%)",
-          width: `${Math.min(100, 90 * settings.globeSize)}vw`, 
-          height: `${Math.min(100, 90 * settings.globeSize)}vh`,
+          width: `${Math.min(90, 80 * settings.globeSize)}vh`, 
+          height: `${Math.min(90, 80 * settings.globeSize)}vh`,
           cursor: "grab",
           touchAction: "none",
           zIndex: 1,

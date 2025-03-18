@@ -32,11 +32,11 @@ export const useGlobeSettings = () => {
     const isHomePage = window.location.pathname === '/';
     
     return {
-      rotationSpeed: 3,
+      rotationSpeed: 0.8,
       mouseSensitivity: 40,
       dotSize: 1.0, // Increased dot size for better visibility
       // Make the globe appropriate size for visibility and quality
-      globeSize: isHomePage ? 1.4 : 1.1, // Reduced from 2.4 to 1.4 for home page
+      globeSize: isHomePage ? 1.8 : 1.5, // Increased size for better visibility
       autoRotate: true,
       landColor: [1.0, 1.0, 1.0], // Pure white for maximum visibility in dark background
       haloColor: [0.8, 0.8, 1.0], // Slightly blue-tinted halo
@@ -45,12 +45,12 @@ export const useGlobeSettings = () => {
       arcColor: [0.3, 0.7, 1.0], // Not used but kept for type compatibility
       headquartersLocation: [37.7749, -122.4194], // Default: San Francisco
       showVisitorMarkers: true,  // Show visitor markers by default
-      // Default opacity for the globe (make it more transparent)
-      opacity: 0.8,
-      // Offset to the left side on home page for better visibility with content
-      offsetX: isHomePage ? -20 : 0,  
-      // Center vertically on home page
-      offsetY: isHomePage ? 0 : 0
+      // Default opacity for the globe
+      opacity: 1.0,
+      // Position globe properly on screen (adjusted to center the window)
+      offsetX: -12,  
+      // Center vertically
+      offsetY: 0
     };
   });
   

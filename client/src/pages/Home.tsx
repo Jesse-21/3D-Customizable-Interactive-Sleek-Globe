@@ -34,9 +34,9 @@ export default function Home() {
       
       {/* We've removed the floating text that made the page hard to read */}
       
-      {/* Main content positioned to the right, allowing the globe to be fully visible on the left */}
-      <div className="relative z-10 min-h-screen flex flex-col items-end justify-center px-4 sm:px-6 lg:px-8">
-        <div className="max-w-2xl ml-auto mr-0 bg-black/40 backdrop-blur-md p-8 rounded-xl border border-white/10 shadow-xl">
+      {/* Main content positioned centrally in the window */}
+      <div className="relative z-10 min-h-screen flex flex-col items-center justify-center px-4 sm:px-6 lg:px-8 mx-auto">
+        <div className="max-w-2xl w-full bg-black/40 backdrop-blur-md p-8 rounded-xl border border-white/10 shadow-xl">
           <h1 className="text-4xl sm:text-5xl font-bold mb-6 bg-gradient-to-r from-white to-indigo-200 bg-clip-text text-transparent">
             Interactive 3D Globe Background
           </h1>
@@ -155,7 +155,7 @@ export default function Home() {
       
       {/* Enhanced Footer with more information */}
       <footer className="relative z-10 w-full bg-black/30 backdrop-blur-sm text-center py-8 mt-8 text-white/60 text-sm">
-        <div className="container mx-auto px-4">
+        <div className="container mx-auto px-4 max-w-screen-xl">
           <div className="flex flex-col md:flex-row justify-center items-center gap-4 mb-4">
             <a 
               href="https://github.com" 
