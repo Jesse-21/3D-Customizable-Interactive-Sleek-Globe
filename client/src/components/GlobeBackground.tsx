@@ -10,6 +10,21 @@ interface LocationMarker {
   timestamp: number; // Our custom property for tracking when markers were added
 }
 
+// WebSocket message type for visitor locations
+interface WebSocketMessage {
+  type: 'visitor_location' | 'initial_locations';
+  location?: {
+    latitude: number;
+    longitude: number;
+    timestamp: number;
+  };
+  locations?: Array<{
+    latitude: number;
+    longitude: number;
+    timestamp: number;
+  }>;
+}
+
 interface GlobeBackgroundProps {
   settings: GlobeSettings;
 }
@@ -26,9 +41,6 @@ const GlobeBackground = ({ settings }: GlobeBackgroundProps) => {
   
   // Use any type to avoid TypeScript issues with the cobe library
   const globeInstanceRef = useRef<any>(null);
-  
-  // For automatic marker generation
-  const markerGenerationTimerRef = useRef<number | null>(null);
   
   // For debugging
   const frameCountRef = useRef(0);
@@ -78,12 +90,161 @@ const GlobeBackground = ({ settings }: GlobeBackgroundProps) => {
     return [lat, lng];
   };
 
-  // Get visitor's location when component mounts
+  // WebSocket reference for visitor location updates
+  const websocketRef = useRef<WebSocket | null>(null);
+  
+  // Get visitor's location and set up WebSocket connection
   useEffect(() => {
-    // Check if user location is stored in localStorage and if it's not older than 30 days
-    const storedLocation = localStorage.getItem('visitorLocation');
     const shouldShowMarkers = settings.showVisitorMarkers;
+    if (!shouldShowMarkers) return;
     
+    // Function to create a marker from location data
+    const createMarker = (lat: number, lng: number, timestamp: number): LocationMarker => {
+      const [validLat, validLng] = validateCoordinates(lat, lng);
+      return {
+        location: [validLat, validLng],
+        size: 0.07, // Consistent small size
+        color: [0.1, 0.8, 1], // Teal color for all visitors
+        timestamp: timestamp
+      };
+    };
+    
+    // Function to set up WebSocket connection
+    const setupWebSocket = () => {
+      // Get the WebSocket URL (use secure WebSocket if the page is loaded over HTTPS)
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      // Use the /ws path to match server configuration
+      const wsUrl = `${protocol}//${window.location.host}/ws`;
+      
+      console.log(`Connecting to WebSocket at ${wsUrl}`);
+      
+      // Create WebSocket connection
+      const ws = new WebSocket(wsUrl);
+      websocketRef.current = ws;
+      
+      // WebSocket event handlers
+      ws.onopen = () => {
+        console.log('WebSocket connection established');
+        
+        // Get visitor's location to broadcast to other clients
+        if (navigator.geolocation) {
+          navigator.geolocation.getCurrentPosition(
+            (position) => {
+              // Broadcast this visitor's location to all other clients
+              if (ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({
+                  type: 'new_visitor',
+                  latitude: position.coords.latitude,
+                  longitude: position.coords.longitude
+                }));
+                
+                // Add the visitor's own marker locally
+                const newMarker = createMarker(
+                  position.coords.latitude,
+                  position.coords.longitude,
+                  Date.now()
+                );
+                
+                // Store the location in localStorage
+                localStorage.setItem('visitorLocation', JSON.stringify({
+                  location: [position.coords.latitude, position.coords.longitude],
+                  timestamp: Date.now()
+                }));
+                
+                setVisitorMarkers(prev => [...prev, newMarker]);
+              }
+            },
+            (error) => {
+              console.log("Geolocation error or permission denied:", error);
+              
+              // Use an approximate location based on populated regions
+              const approximateLocation = generateRandomVisitorLocation();
+              
+              // Broadcast this approximate location
+              if (ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({
+                  type: 'new_visitor',
+                  latitude: approximateLocation[0],
+                  longitude: approximateLocation[1]
+                }));
+                
+                // Add the marker locally
+                const newMarker = createMarker(
+                  approximateLocation[0],
+                  approximateLocation[1],
+                  Date.now()
+                );
+                
+                setVisitorMarkers(prev => [...prev, newMarker]);
+              }
+            }
+          );
+        }
+      };
+      
+      // Handle incoming WebSocket messages
+      ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data) as WebSocketMessage;
+          
+          if (data.type === 'visitor_location' && data.location) {
+            // Add a new visitor location received from another client
+            const marker = createMarker(
+              data.location.latitude,
+              data.location.longitude,
+              data.location.timestamp
+            );
+            
+            // Add this marker and ensure we don't exceed max markers
+            setVisitorMarkers(prev => {
+              const newMarkers = [...prev, marker];
+              // Keep only the most recent 12 markers
+              return newMarkers.length > 12 ? newMarkers.slice(-12) : newMarkers;
+            });
+          } 
+          else if (data.type === 'initial_locations' && data.locations && data.locations.length > 0) {
+            // Process all initial locations received when first connecting
+            const markers = data.locations.map(loc => 
+              createMarker(loc.latitude, loc.longitude, loc.timestamp)
+            );
+            
+            // Add these markers to our state
+            setVisitorMarkers(prev => {
+              const newMarkers = [...prev, ...markers];
+              // Keep only the most recent 12 markers
+              return newMarkers.length > 12 ? newMarkers.slice(-12) : newMarkers;
+            });
+          }
+        } catch (error) {
+          console.error('Error processing WebSocket message:', error);
+        }
+      };
+      
+      // Handle WebSocket connection closure
+      ws.onclose = () => {
+        console.log('WebSocket connection closed');
+        websocketRef.current = null;
+        
+        // Try to reconnect after 5 seconds
+        setTimeout(() => {
+          if (shouldShowMarkers) {
+            setupWebSocket();
+          }
+        }, 5000);
+      };
+      
+      // Handle WebSocket errors
+      ws.onerror = (error) => {
+        console.error('WebSocket error:', error);
+        // Close the connection on error to trigger reconnection
+        ws.close();
+      };
+      
+      return ws;
+    };
+    
+    // Check if we have a stored location
+    const storedLocation = localStorage.getItem('visitorLocation');
     if (storedLocation) {
       try {
         const { location, timestamp } = JSON.parse(storedLocation);
@@ -93,124 +254,30 @@ const GlobeBackground = ({ settings }: GlobeBackgroundProps) => {
         if (isExpired) {
           // Reset markers after 30 days
           localStorage.removeItem('visitorLocation');
-          setVisitorMarkers([]);
-        } else if (shouldShowMarkers) {
-          // Use stored location if available and not expired
-          setVisitorMarkers([{
-            location: location,
-            size: 0.1,
-            color: [1, 0.5, 0], // Orange color for visitor dot
-            timestamp: timestamp
-          }]);
+        } else {
+          // Add the visitor's own stored location marker
+          const marker = createMarker(location[0], location[1], timestamp);
+          setVisitorMarkers([marker]);
         }
       } catch (e) {
         console.error("Error parsing stored location:", e);
         localStorage.removeItem('visitorLocation');
       }
-    } else if (navigator.geolocation && shouldShowMarkers) {
-      // Get current location if permission is granted
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          // Validate coordinates before creating marker
-          const [validLat, validLng] = validateCoordinates(
-            position.coords.latitude,
-            position.coords.longitude
-          );
-          
-          const newMarker: LocationMarker = {
-            location: [validLat, validLng],
-            size: 0.1,
-            color: [1, 0.5, 0], // Orange color for visitor dot
-            timestamp: Date.now()
-          };
-          
-          // Save to localStorage
-          localStorage.setItem('visitorLocation', JSON.stringify({
-            location: [position.coords.latitude, position.coords.longitude],
-            timestamp: Date.now()
-          }));
-          
-          setVisitorMarkers([newMarker]);
-        },
-        (error) => {
-          console.log("Geolocation error or permission denied:", error);
-          
-          // Use timezone to approximate location
-          const timezoneOffset = new Date().getTimezoneOffset();
-          // Generate a random location biased by timezone
-          const approximateLocation = generateRandomVisitorLocation();
-          
-          // Validate approximate location coordinates
-          const [validLat, validLng] = validateCoordinates(
-            approximateLocation[0],
-            approximateLocation[1]
-          );
-          
-          const newMarker: LocationMarker = {
-            location: [validLat, validLng],
-            size: 0.1,
-            color: [1, 0.5, 0], // Orange color for visitor dot
-            timestamp: Date.now()
-          };
-          
-          setVisitorMarkers([newMarker]);
-        }
-      );
-    }
-  }, [settings.showVisitorMarkers]);
-
-  // Setup automatic visitor marker generation
-  useEffect(() => {
-    // Clean up any existing generation timer
-    if (markerGenerationTimerRef.current !== null) {
-      clearInterval(markerGenerationTimerRef.current);
-      markerGenerationTimerRef.current = null;
     }
     
-    // If marker generation is enabled, set it up
-    if (settings.showVisitorMarkers) {
-      // Generate a new random visitor every 5-8 seconds
-      markerGenerationTimerRef.current = window.setInterval(() => {
-        // Limit the number of markers to prevent performance issues
-        // Maximum of 12 markers at any time
-        if (visitorMarkers.length >= 12) {
-          // Remove the oldest marker when we hit the limit
-          setVisitorMarkers((prev: LocationMarker[]) => prev.slice(1));
-        }
-        
-        // Generate a new random location
-        const newLocation = generateRandomVisitorLocation();
-        const [validLat, validLng] = validateCoordinates(newLocation[0], newLocation[1]);
-        
-        // Create a new marker with a slightly random size and color variation
-        const sizeVariation = Math.random() * 0.05 + 0.05; // Size between 0.05 and 0.1
-        const hueVariation = Math.random() * 0.3; // Slight color variation
-        
-        const newMarker: LocationMarker = {
-          location: [validLat, validLng],
-          size: sizeVariation,
-          // Vary the color slightly for visual interest
-          color: [
-            0.8 + hueVariation, // Red component
-            0.4 + hueVariation, // Green component
-            hueVariation,       // Blue component
-          ],
-          timestamp: Date.now()
-        };
-        
-        // Add the new marker to the existing set
-        setVisitorMarkers((prev: LocationMarker[]) => [...prev, newMarker]);
-      }, 5000 + Math.random() * 3000); // Random interval between 5-8 seconds
-    }
+    // Set up WebSocket connection
+    const ws = setupWebSocket();
     
-    // Cleanup on unmount
+    // Cleanup function
     return () => {
-      if (markerGenerationTimerRef.current !== null) {
-        clearInterval(markerGenerationTimerRef.current);
-        markerGenerationTimerRef.current = null;
+      if (websocketRef.current) {
+        websocketRef.current.close();
+        websocketRef.current = null;
       }
     };
-  }, [settings.showVisitorMarkers, visitorMarkers.length]);
+  }, [settings.showVisitorMarkers]);
+
+  // We've replaced the automatic marker generation with real-time WebSocket updates
   
   // Function to create the globe
   const initGlobe = () => {
@@ -413,23 +480,24 @@ const GlobeBackground = ({ settings }: GlobeBackgroundProps) => {
         left: 0, 
         width: "100%", 
         height: "100%", 
-        background: "linear-gradient(135deg, #000000 0%, #050620 100%)",
+        background: "linear-gradient(135deg, #061033 0%, #030b30 100%)",
         zIndex: -1,
         overflow: "hidden"
       }}
+      className="globe-background"
     >
-      {/* Enhanced glow effect layer that scales with globe size */}
+      {/* Glow effect behind the globe */}
       <div
         style={{
           position: "absolute",
           top: `calc(50% + ${settings.offsetY}%)`,
           left: `calc(50% + ${settings.offsetX}%)`,
           transform: "translate(-50%, -50%)",
-          width: `${Math.min(90, 60 * settings.globeSize)}vh`, 
-          height: `${Math.min(90, 60 * settings.globeSize)}vh`, 
+          width: `${Math.min(180, 150 * settings.globeSize)}vh`, 
+          height: `${Math.min(180, 150 * settings.globeSize)}vh`, 
           borderRadius: "50%",
           background: "radial-gradient(circle, rgba(40,120,220,0.15) 0%, rgba(20,80,200,0.08) 40%, rgba(0,0,0,0) 70%)",
-          boxShadow: "0 0 120px 15px rgba(30,70,180,0.1)",
+          boxShadow: "0 0 80px 10px rgba(30,70,180,0.1)",
           zIndex: 0,
           pointerEvents: "none"
         }}
@@ -445,8 +513,8 @@ const GlobeBackground = ({ settings }: GlobeBackgroundProps) => {
           top: `calc(50% + ${settings.offsetY}%)`,
           left: `calc(50% + ${settings.offsetX}%)`,
           transform: "translate(-50%, -50%)",
-          width: `${Math.min(90, 80 * settings.globeSize)}vh`, 
-          height: `${Math.min(90, 80 * settings.globeSize)}vh`,
+          width: `${Math.min(180, 150 * settings.globeSize)}vh`, 
+          height: `${Math.min(120, 100 * settings.globeSize)}vh`,
           cursor: "grab",
           touchAction: "none",
           zIndex: 1,

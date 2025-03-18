@@ -36,7 +36,7 @@ export const useGlobeSettings = () => {
       mouseSensitivity: 40,
       dotSize: 1.0, // Increased dot size for better visibility
       // Make the globe appropriate size for visibility and quality
-      globeSize: isHomePage ? 1.8 : 1.5, // Increased size for better visibility
+      globeSize: isHomePage ? 1.5 : 1.3, // Slightly smaller globe size
       autoRotate: true,
       landColor: [1.0, 1.0, 1.0], // Pure white for maximum visibility in dark background
       haloColor: [0.8, 0.8, 1.0], // Slightly blue-tinted halo
@@ -49,8 +49,8 @@ export const useGlobeSettings = () => {
       opacity: 1.0,
       // Position globe properly on screen (adjusted to center the window)
       offsetX: -12,  
-      // Center vertically
-      offsetY: 0
+      // Move globe higher on the screen
+      offsetY: -15
     };
   });
   

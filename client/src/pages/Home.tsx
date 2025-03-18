@@ -12,10 +12,10 @@ export default function Home() {
       <GlobeBackground settings={settings} />
       
       {/* Header with navigation */}
-      <header className="fixed top-0 w-full z-10 p-4 md:p-6 flex justify-end items-center">
-        <div className="flex items-center gap-2">
+      <header className="fixed top-0 w-full z-50 p-4 md:p-6 flex justify-end items-center pointer-events-auto">
+        <div className="flex items-center gap-2 pointer-events-auto">
           <Link href="/preview">
-            <button className="flex items-center gap-2 text-sm text-white/70 hover:text-white transition-colors py-1 px-3 rounded-full bg-indigo-500/30 hover:bg-indigo-500/50 mr-2 backdrop-blur-sm">
+            <button className="flex items-center gap-2 text-sm text-white/90 hover:text-white transition-colors py-1 px-3 rounded-full bg-indigo-500/50 hover:bg-indigo-500/80 mr-2 backdrop-blur-sm shadow-md cursor-pointer">
               <Eye className="h-4 w-4" />
               <span className="hidden sm:inline">Preview Mode</span>
             </button>
@@ -24,7 +24,7 @@ export default function Home() {
             href="https://github.com"
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-2 text-sm text-white/70 hover:text-white transition-colors py-1 px-3 rounded-full bg-black/30 hover:bg-black/50 backdrop-blur-sm"
+            className="flex items-center gap-2 text-sm text-white/90 hover:text-white transition-colors py-1 px-3 rounded-full bg-black/50 hover:bg-black/70 backdrop-blur-sm shadow-md cursor-pointer"
           >
             <Github className="h-4 w-4" />
             <span className="hidden sm:inline">View on GitHub</span>

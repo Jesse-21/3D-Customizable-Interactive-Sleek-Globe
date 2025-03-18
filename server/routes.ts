@@ -1,7 +1,15 @@
-import type { Express, Request, Response } from "express";
+import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import fetch from "node-fetch";
+import { WebSocketServer } from "ws";
+
+// For tracking connected clients and visitor locations
+interface VisitorLocation {
+  latitude: number;
+  longitude: number;
+  timestamp: number;
+}
 
 // Free IP geolocation API
 const IP_API_URL = "http://ip-api.com/json/";
@@ -14,6 +22,10 @@ interface GeoLocationResponse {
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // In-memory storage of recent visitor locations (for new connections)
+  const recentVisitorLocations: VisitorLocation[] = [];
+  const MAX_STORED_LOCATIONS = 30; // Keep only the most recent locations
+  
   // API route to get globe settings (default values)
   app.get('/api/globe-settings', (req, res) => {
     res.json({
@@ -71,6 +83,63 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   const httpServer = createServer(app);
+  
+  // Create WebSocket server with explicit path that doesn't conflict with Vite
+  const wss = new WebSocketServer({ 
+    server: httpServer,
+    path: '/ws'
+  });
+  
+  wss.on('connection', (ws) => {
+    console.log('New WebSocket client connected');
+    
+    // Send all recent visitor locations to the newly connected client
+    if (recentVisitorLocations.length > 0) {
+      ws.send(JSON.stringify({
+        type: 'initial_locations',
+        locations: recentVisitorLocations
+      }));
+    }
+    
+    // Handle messages from clients
+    ws.on('message', (message) => {
+      try {
+        const data = JSON.parse(message.toString());
+        
+        if (data.type === 'new_visitor' && data.latitude !== undefined && data.longitude !== undefined) {
+          const visitorLocation: VisitorLocation = {
+            latitude: data.latitude,
+            longitude: data.longitude,
+            timestamp: Date.now()
+          };
+          
+          // Add to recent locations
+          recentVisitorLocations.push(visitorLocation);
+          
+          // Keep only the most recent locations
+          if (recentVisitorLocations.length > MAX_STORED_LOCATIONS) {
+            recentVisitorLocations.shift(); // Remove oldest
+          }
+          
+          // Broadcast to all connected clients
+          wss.clients.forEach((client) => {
+            if (client !== ws && client.readyState === ws.OPEN) {
+              client.send(JSON.stringify({
+                type: 'visitor_location',
+                location: visitorLocation
+              }));
+            }
+          });
+        }
+      } catch (error) {
+        console.error('Error processing WebSocket message:', error);
+      }
+    });
+    
+    ws.on('close', () => {
+      console.log('WebSocket client disconnected');
+    });
+  });
 
   return httpServer;
 }

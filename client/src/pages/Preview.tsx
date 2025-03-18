@@ -117,6 +117,7 @@ export default function Preview() {
     glitchEffect: ${settings.glitchEffect},
     showArcs: ${settings.showArcs},
     arcColor: [${settings.arcColor[0]}, ${settings.arcColor[1]}, ${settings.arcColor[2]}],
+    // Using original settings for the download package, not the preview-specific ones
     offsetX: ${settings.offsetX},
     offsetY: ${settings.offsetY},
     showVisitorLocation: ${settings.showVisitorMarkers}
@@ -501,9 +502,17 @@ canvas.globe-canvas {
   };
 
   // Use GlobeControls component to manage all controls in one place
+  // Create a modified settings object specifically for Preview mode
+  const previewSettings = {
+    ...settings,
+    // Position the globe more to the right in preview mode to be closer to controls panel
+    offsetX: 12, // Changed from -12 to positive 12 to move right
+    offsetY: -5  // Reduced from -15 to -5 to be less high
+  };
+  
   return (
     <>
-      <GlobeBackground settings={settings} />
+      <GlobeBackground settings={previewSettings} />
       
       {/* Minimal header with back button */}
       <header className="fixed top-0 left-0 z-10 p-4">
@@ -533,7 +542,7 @@ canvas.globe-canvas {
       
       {/* Use the comprehensive GlobeControls component */}
       <GlobeControls
-        settings={settings}
+        settings={previewSettings} /* Use the preview settings to show correct values */
         onRotationSpeedChange={updateRotationSpeed}
         onMouseSensitivityChange={updateMouseSensitivity}
         onDotSizeChange={updateDotSize}
