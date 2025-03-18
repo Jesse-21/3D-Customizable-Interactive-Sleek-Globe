@@ -505,9 +505,10 @@ canvas.globe-canvas {
   // Create a modified settings object specifically for Preview mode
   const previewSettings = {
     ...settings,
-    // Position the globe more to the right in preview mode to be closer to controls panel
-    offsetX: 12, // Changed from -12 to positive 12 to move right
-    offsetY: -5  // Reduced from -15 to -5 to be less high
+    // Position the globe more centrally in preview mode
+    offsetX: -5, // Changed to negative value to move left, away from controls
+    offsetY: -5, // Keeps vertical position the same
+    globeSize: settings.globeSize * 0.9 // Slightly reduce globe size in preview mode for better layout
   };
   
   return (

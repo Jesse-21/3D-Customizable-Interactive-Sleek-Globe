@@ -119,7 +119,7 @@ const GlobeControls = ({
   ];
   
   return (
-    <div className={`fixed bottom-4 right-4 z-20 ${isOpen ? 'bg-black/80 backdrop-blur-sm' : 'bg-black/50'} p-4 rounded-lg shadow-lg border border-white/20 transition-all duration-300 ${isOpen ? 'w-80' : 'w-auto'}`}>
+    <div className={`fixed bottom-4 right-4 z-20 ${isOpen ? 'bg-black/80 backdrop-blur-sm' : 'bg-black/50'} p-4 rounded-lg shadow-lg border border-white/20 transition-all duration-300 ${isOpen ? 'w-80 max-h-[85vh] overflow-y-auto' : 'w-auto'}`}>
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Settings className="h-4 w-4 text-indigo-400" />
