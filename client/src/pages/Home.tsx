@@ -1,15 +1,28 @@
+import React, { Suspense } from "react";
 import GlobeBackground from "@/components/GlobeBackground";
 import DownloadPackage from "@/components/DownloadPackage";
 import { useGlobeSettings } from "@/hooks/useGlobeSettings";
 import { GlobeIcon, Github, Zap, Eye } from "lucide-react";
 import { Link } from "wouter";
 
+// Fallback component while globe is loading
+const GlobeFallback = () => (
+  <div className="fixed inset-0 bg-gradient-to-b from-blue-950 to-indigo-950 flex items-center justify-center">
+    <div className="text-white text-center">
+      <div className="w-16 h-16 border-4 border-indigo-400 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+      <p className="text-lg">Loading 3D Globe...</p>
+    </div>
+  </div>
+);
+
 export default function Home() {
   const { settings } = useGlobeSettings();
   
   return (
     <>
-      <GlobeBackground settings={settings} />
+      <Suspense fallback={<GlobeFallback />}>
+        <GlobeBackground settings={settings} />
+      </Suspense>
       
       {/* Header with navigation */}
       <header className="fixed top-0 w-full z-50 p-4 md:p-6 flex justify-end items-center pointer-events-auto">

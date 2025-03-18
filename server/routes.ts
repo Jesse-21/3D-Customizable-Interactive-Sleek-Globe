@@ -26,6 +26,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const recentVisitorLocations: VisitorLocation[] = [];
   const MAX_STORED_LOCATIONS = 30; // Keep only the most recent locations
   
+  // Simple status endpoint to check if the server is running
+  app.get('/status', (req, res) => {
+    res.json({
+      status: 'ok',
+      message: 'Server is running correctly',
+      timestamp: new Date().toISOString()
+    });
+  });
+  
   // API route to get globe settings (default values)
   app.get('/api/globe-settings', (req, res) => {
     res.json({
