@@ -4,7 +4,7 @@ This repository provides a customizable, interactive 3D dot globe that is mouse-
 
 <BR><BR>
 ![image](https://github.com/user-attachments/assets/70715a2c-31df-4d9d-8580-6f00e8e114f6)
-<BR>[ Screenshot of Main Landing Page ]<BR>
+<BR><I>[ Screenshot of Main Landing Page ]<BR></I>
 
 ## Features
 
@@ -20,7 +20,7 @@ This repository provides a customizable, interactive 3D dot globe that is mouse-
 
 <BR><BR>
 ![image](https://github.com/user-attachments/assets/8f71b72f-a8b7-41be-a03c-cc2f63cb79c0)
-<BR>[ Screenshot of the "Preview Mode" screen to choose globe settings and download it ]<BR>
+<BR><i>[ Screenshot of the "Preview Mode" screen to choose globe settings and download it ]<BR></i>
 
 ## Installation
 
