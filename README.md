@@ -2,8 +2,9 @@
 
 This repository provides a customizable, interactive 3D dot globe that is mouse-responsive, draggable, and rotates smoothly. The included website features a simple landing page alongside a Preview Mode where users can modify the globe’s appearance and position (adjusting its X and Y axis placement). Once satisfied with their customizations in Preview Mode, users can download a lightweight set of files that will replicate their chosen globe settings. If no changes are made, the downloaded globe will default to the initial appearance and positioning as displayed when Preview Mode first loads.
 
+<BR><BR>
 ![image](https://github.com/user-attachments/assets/70715a2c-31df-4d9d-8580-6f00e8e114f6)
-
+<BR>[ Screenshot of Main Landing Page ]<BR>
 
 ## Features
 
@@ -17,8 +18,9 @@ This repository provides a customizable, interactive 3D dot globe that is mouse-
 - Customizable positioning controls
 - Fully customizable appearance
 
+<BR><BR>
 ![image](https://github.com/user-attachments/assets/8f71b72f-a8b7-41be-a03c-cc2f63cb79c0)
-
+<BR>[ Screenshot of the "Preview Mode" screen to choose globe settings and download it ]<BR>
 
 ## Installation
 
