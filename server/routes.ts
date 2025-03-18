@@ -35,14 +35,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   });
   
+  // Debug endpoint to check CORS and other configuration
+  app.get('/debug', (req, res) => {
+    res.json({
+      status: 'ok',
+      message: 'Debug endpoint is working',
+      serverInfo: {
+        env: app.get('env'),
+        nodeEnv: process.env.NODE_ENV,
+        headers: req.headers,
+        url: req.url,
+        method: req.method,
+        host: req.headers.host
+      },
+      timestamp: new Date().toISOString()
+    });
+  });
+  
   // API route to get globe settings (default values)
   app.get('/api/globe-settings', (req, res) => {
     res.json({
-      rotationSpeed: 3,
+      rotationSpeed: 0.8,
       mouseSensitivity: 40,
-      dotSize: 0.5,
-      globeSize: 1.1,
-      autoRotate: true
+      dotSize: 1,
+      globeSize: 1.5,
+      autoRotate: true,
+      landColor: [1, 1, 1],
+      haloColor: [0.8, 0.8, 1],
+      glitchEffect: false,
+      showArcs: false,
+      arcColor: [0.3, 0.7, 1],
+      headquartersLocation: [37.7749, -122.4194],
+      showVisitorMarkers: true,
+      opacity: 1,
+      offsetX: -12,
+      offsetY: -15
     });
   });
 
@@ -96,7 +123,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Create WebSocket server with explicit path that doesn't conflict with Vite
   const wss = new WebSocketServer({ 
     server: httpServer,
-    path: '/ws'
+    path: '/ws',
+    // Add WebSocket specific options to better handle Replit's environment
+    perMessageDeflate: {
+      zlibDeflateOptions: {
+        chunkSize: 1024,
+        memLevel: 7,
+        level: 3
+      },
+      zlibInflateOptions: {
+        chunkSize: 10 * 1024
+      },
+      clientNoContextTakeover: true,
+      serverNoContextTakeover: true,
+      serverMaxWindowBits: 10,
+      concurrencyLimit: 10,
+      threshold: 1024
+    }
   });
   
   wss.on('connection', (ws) => {

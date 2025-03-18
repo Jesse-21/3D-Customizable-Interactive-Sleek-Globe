@@ -17,6 +17,9 @@ interface GlobeControlsProps {
   onGlitchEffectChange: (value: boolean) => void;
   onShowArcsChange: (value: boolean) => void;
   onArcColorChange: (value: RGBColor) => void;
+  onArcAltitudeChange?: (value: number) => void;
+  onArcAnimationSpeedChange?: (value: number) => void;
+  onArcDensityChange?: (value: number) => void;
   onHeadquartersLocationChange: (value: LocationCoordinates) => void;
   onShowVisitorMarkersChange: (value: boolean) => void;
   onOpacityChange?: (value: number) => void;
@@ -36,6 +39,9 @@ const GlobeControls = ({
   onGlitchEffectChange,
   onShowArcsChange,
   onArcColorChange,
+  onArcAltitudeChange,
+  onArcAnimationSpeedChange,
+  onArcDensityChange,
   onHeadquartersLocationChange,
   onShowVisitorMarkersChange,
   onOffsetXChange,
@@ -150,7 +156,12 @@ const GlobeControls = ({
             >
               Look
             </button>
-            {/* Removed Arcs tab as it's no longer needed */}
+            <button
+              onClick={() => setActiveTab('connections')}
+              className={`flex-1 py-2 px-3 text-xs font-medium ${activeTab === 'connections' ? 'text-indigo-300 border-b-2 border-indigo-500' : 'text-white/70 hover:text-white/90'}`}
+            >
+              Arcs
+            </button>
             <button
               onClick={() => setActiveTab('position')}
               className={`flex-1 py-2 px-3 text-xs font-medium ${activeTab === 'position' ? 'text-indigo-300 border-b-2 border-indigo-500' : 'text-white/70 hover:text-white/90'}`}
@@ -365,6 +376,160 @@ const GlobeControls = ({
             </div>
           )}
           
+          {/* Connections tab */}
+          {activeTab === 'connections' && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1">
+                  <Share2 className="h-3 w-3 text-blue-400" />
+                  <Label htmlFor="show-arcs" className="text-xs text-indigo-200">Show Connection Arcs</Label>
+                </div>
+                <Switch 
+                  id="show-arcs"
+                  checked={settings.showArcs}
+                  onCheckedChange={onShowArcsChange}
+                />
+              </div>
+              
+              {settings.showArcs && (
+                <>
+                  <div>
+                    <div className="flex justify-between mb-1">
+                      <div className="flex items-center gap-1">
+                        <Palette className="h-3 w-3 text-indigo-300" />
+                        <Label htmlFor="arc-color" className="block text-xs text-indigo-200">Arc Color</Label>
+                      </div>
+                      <input 
+                        type="color"
+                        id="arc-color"
+                        value={rgbToHex(settings.arcColor)}
+                        onChange={handleArcColorChange}
+                        className="w-8 h-6 rounded overflow-hidden cursor-pointer"
+                      />
+                    </div>
+                    <div className="text-xs text-white/50 mt-1">
+                      Color of connection arcs between locations
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <div className="flex justify-between mb-1">
+                      <Label htmlFor="arc-altitude" className="block text-xs text-indigo-200">Arc Height</Label>
+                      <span className="text-xs text-white/70">{settings.arcAltitude.toFixed(2)}</span>
+                    </div>
+                    <Slider 
+                      id="arc-altitude"
+                      min={0.1}
+                      max={1}
+                      step={0.05}
+                      value={[settings.arcAltitude]}
+                      onValueChange={(value) => onArcAltitudeChange && onArcAltitudeChange(value[0])}
+                      className="w-full"
+                    />
+                    <div className="text-xs text-white/50 mt-1">
+                      How high arcs extend from the globe surface
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <div className="flex justify-between mb-1">
+                      <Label htmlFor="arc-animation-speed" className="block text-xs text-indigo-200">Animation Speed</Label>
+                      <span className="text-xs text-white/70">{settings.arcAnimationSpeed.toFixed(1)}</span>
+                    </div>
+                    <Slider 
+                      id="arc-animation-speed"
+                      min={0.1}
+                      max={2}
+                      step={0.1}
+                      value={[settings.arcAnimationSpeed]}
+                      onValueChange={(value) => onArcAnimationSpeedChange && onArcAnimationSpeedChange(value[0])}
+                      className="w-full"
+                    />
+                    <div className="text-xs text-white/50 mt-1">
+                      Speed of arc travel animations
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <div className="flex justify-between mb-1">
+                      <Label htmlFor="arc-density" className="block text-xs text-indigo-200">Arc Density</Label>
+                      <span className="text-xs text-white/70">{Math.round(settings.arcDensity)}</span>
+                    </div>
+                    <Slider 
+                      id="arc-density"
+                      min={1}
+                      max={10}
+                      step={1}
+                      value={[settings.arcDensity]}
+                      onValueChange={(value) => onArcDensityChange && onArcDensityChange(value[0])}
+                      className="w-full"
+                    />
+                    <div className="text-xs text-white/50 mt-1">
+                      How many arcs to display simultaneously
+                    </div>
+                  </div>
+                  
+                  <div className="pt-3 border-t border-white/10">
+                    <div className="text-xs font-medium text-indigo-200 mb-2">Headquarters Location</div>
+                    <div className="grid grid-cols-2 gap-2">
+                      {commonLocations.map((location) => (
+                        <button
+                          key={location.name}
+                          onClick={() => onHeadquartersLocationChange(location.coords as LocationCoordinates)}
+                          className={`py-1 px-2 text-xs ${
+                            settings.headquartersLocation[0] === location.coords[0] && 
+                            settings.headquartersLocation[1] === location.coords[1] 
+                              ? 'bg-indigo-500 text-white' 
+                              : 'bg-indigo-900/30 hover:bg-indigo-800/40 text-indigo-200'
+                          } rounded flex items-center justify-center gap-1`}
+                        >
+                          <MapPin className="h-2.5 w-2.5" />
+                          {location.name}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
+              
+              <div className="flex flex-wrap gap-2 pt-3 border-t border-white/10">
+                <button
+                  onClick={() => {
+                    onShowArcsChange(true);
+                    if (onArcColorChange) onArcColorChange([0.3, 0.6, 1]); // Light blue
+                    if (onArcAltitudeChange) onArcAltitudeChange(0.4);
+                    if (onArcDensityChange) onArcDensityChange(5);
+                  }}
+                  className="py-1 px-2 text-xs bg-blue-900/30 hover:bg-blue-800/40 text-blue-300 rounded"
+                >
+                  Default Arcs
+                </button>
+                <button
+                  onClick={() => {
+                    onShowArcsChange(true);
+                    if (onArcColorChange) onArcColorChange([1, 0.3, 0.1]); // Orange-red
+                    if (onArcAltitudeChange) onArcAltitudeChange(0.8);
+                    if (onArcDensityChange) onArcDensityChange(3);
+                  }}
+                  className="py-1 px-2 text-xs bg-red-900/30 hover:bg-red-800/40 text-red-300 rounded"
+                >
+                  High Arcs
+                </button>
+                <button
+                  onClick={() => {
+                    onShowArcsChange(true);
+                    if (onArcColorChange) onArcColorChange([0.05, 0.8, 0.2]); // Green
+                    if (onArcAltitudeChange) onArcAltitudeChange(0.2);
+                    if (onArcDensityChange) onArcDensityChange(8);
+                  }}
+                  className="py-1 px-2 text-xs bg-green-900/30 hover:bg-green-800/40 text-green-300 rounded"
+                >
+                  Dense Network
+                </button>
+              </div>
+            </div>
+          )}
+          
           {/* Position tab */}
           {activeTab === 'position' && (
             <div className="space-y-4">
@@ -446,8 +611,6 @@ const GlobeControls = ({
               </div>
             </div>
           )}
-          
-          {/* Connections tab removed */}
         </div>
       )}
     </div>

@@ -17,6 +17,10 @@ export interface GlobeSettings {
   glitchEffect: boolean;
   showArcs: boolean;
   arcColor: RGBColor;
+  // Arc animation settings
+  arcAltitude: number; // How high arcs go (0.1-1)
+  arcAnimationSpeed: number; // Speed of arc animations (0.1-2)
+  arcDensity: number; // How many arcs to show (1-10)
   headquartersLocation: LocationCoordinates;
   showVisitorMarkers: boolean;
   // Transparency of the globe (0-1)
@@ -40,9 +44,13 @@ export const useGlobeSettings = () => {
       autoRotate: true,
       landColor: [1.0, 1.0, 1.0], // Pure white for maximum visibility in dark background
       haloColor: [0.8, 0.8, 1.0], // Slightly blue-tinted halo
-      glitchEffect: false,       // Permanently disabled
-      showArcs: false,          // Permanently disabled
-      arcColor: [0.3, 0.7, 1.0], // Not used but kept for type compatibility
+      glitchEffect: false,
+      showArcs: false,
+      arcColor: [0.3, 0.7, 1.0], // Bright blue arcs
+      // Arc animation settings
+      arcAltitude: 0.4, // Medium height arcs
+      arcAnimationSpeed: 0.8, // Medium animation speed
+      arcDensity: 5, // Moderate number of arcs
       headquartersLocation: [37.7749, -122.4194], // Default: San Francisco
       showVisitorMarkers: true,  // Show visitor markers by default
       // Default opacity for the globe
@@ -92,6 +100,24 @@ export const useGlobeSettings = () => {
   
   const updateArcColor = (color: RGBColor) => {
     setSettings(prev => ({ ...prev, arcColor: color }));
+  };
+  
+  const updateArcAltitude = (value: number) => {
+    // Clamp between 0.1 and 1
+    const clampedValue = Math.max(0.1, Math.min(1, value));
+    setSettings(prev => ({ ...prev, arcAltitude: clampedValue }));
+  };
+  
+  const updateArcAnimationSpeed = (value: number) => {
+    // Clamp between 0.1 and 2
+    const clampedValue = Math.max(0.1, Math.min(2, value));
+    setSettings(prev => ({ ...prev, arcAnimationSpeed: clampedValue }));
+  };
+  
+  const updateArcDensity = (value: number) => {
+    // Clamp between 1 and 10, and ensure it's an integer
+    const clampedValue = Math.max(1, Math.min(10, Math.round(value)));
+    setSettings(prev => ({ ...prev, arcDensity: clampedValue }));
   };
   
   const updateHeadquartersLocation = (location: LocationCoordinates) => {
@@ -155,6 +181,9 @@ export const useGlobeSettings = () => {
     updateGlitchEffect,
     updateShowArcs,
     updateArcColor,
+    updateArcAltitude,
+    updateArcAnimationSpeed,
+    updateArcDensity,
     updateHeadquartersLocation,
     updateShowVisitorMarkers,
     updateOffsetX,
