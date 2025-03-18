@@ -19,6 +19,8 @@ export interface GlobeSettings {
   arcColor: RGBColor;
   headquartersLocation: LocationCoordinates;
   showVisitorMarkers: boolean;
+  // Transparency of the globe (0-1)
+  opacity: number;
   // Globe positioning
   offsetX: number; // Horizontal position offset in percentage (-50 to 50)
   offsetY: number; // Vertical position offset in percentage (-50 to 50)
@@ -32,21 +34,23 @@ export const useGlobeSettings = () => {
     return {
       rotationSpeed: 3,
       mouseSensitivity: 40,
-      dotSize: 0.5,
-      // Make the globe larger on the home page for better visibility
-      globeSize: isHomePage ? 2.4 : 1.1,
+      dotSize: 1.0, // Increased dot size for better visibility
+      // Make the globe appropriate size for visibility and quality
+      globeSize: isHomePage ? 1.4 : 1.1, // Reduced from 2.4 to 1.4 for home page
       autoRotate: true,
-      landColor: [0.3, 0.3, 0.3], // Default gray land color
-      haloColor: [1, 1, 1],      // Default white halo
+      landColor: [1.0, 1.0, 1.0], // Pure white for maximum visibility in dark background
+      haloColor: [0.8, 0.8, 1.0], // Slightly blue-tinted halo
       glitchEffect: false,       // Permanently disabled
       showArcs: false,          // Permanently disabled
       arcColor: [0.3, 0.7, 1.0], // Not used but kept for type compatibility
       headquartersLocation: [37.7749, -122.4194], // Default: San Francisco
       showVisitorMarkers: true,  // Show visitor markers by default
+      // Default opacity for the globe (make it more transparent)
+      opacity: 0.8,
       // Offset to the left side on home page for better visibility with content
-      offsetX: isHomePage ? -15 : 0,  
+      offsetX: isHomePage ? -20 : 0,  
       // Center vertically on home page
-      offsetY: isHomePage ? 0 : 0   
+      offsetY: isHomePage ? 0 : 0
     };
   });
   
@@ -110,6 +114,12 @@ export const useGlobeSettings = () => {
     setSettings(prev => ({ ...prev, offsetY: clampedValue }));
   };
   
+  const updateOpacity = (value: number) => {
+    // Clamp value between 0 and 1
+    const clampedValue = Math.max(0, Math.min(1, value));
+    setSettings(prev => ({ ...prev, opacity: clampedValue }));
+  };
+  
   // Helper function to convert hex color to RGB array (values 0-1)
   const hexToRgb = (hex: string): RGBColor => {
     // Remove # if present
@@ -149,6 +159,7 @@ export const useGlobeSettings = () => {
     updateShowVisitorMarkers,
     updateOffsetX,
     updateOffsetY,
+    updateOpacity,
     hexToRgb,
     rgbToHex
   };

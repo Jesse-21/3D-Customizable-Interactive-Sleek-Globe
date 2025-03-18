@@ -24,6 +24,7 @@ export default function Preview() {
     updateShowVisitorMarkers,
     updateOffsetX,
     updateOffsetY,
+    updateOpacity,
     hexToRgb,
     rgbToHex
   } = useGlobeSettings();
@@ -547,6 +548,7 @@ canvas.globe-canvas {
         onShowVisitorMarkersChange={updateShowVisitorMarkers}
         onOffsetXChange={updateOffsetX}
         onOffsetYChange={updateOffsetY}
+        onOpacityChange={updateOpacity}
       />
     </>
   );

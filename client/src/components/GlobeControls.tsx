@@ -19,6 +19,7 @@ interface GlobeControlsProps {
   onArcColorChange: (value: RGBColor) => void;
   onHeadquartersLocationChange: (value: LocationCoordinates) => void;
   onShowVisitorMarkersChange: (value: boolean) => void;
+  onOpacityChange?: (value: number) => void;
   onOffsetXChange?: (value: number) => void;
   onOffsetYChange?: (value: number) => void;
 }
@@ -38,7 +39,8 @@ const GlobeControls = ({
   onHeadquartersLocationChange,
   onShowVisitorMarkersChange,
   onOffsetXChange,
-  onOffsetYChange
+  onOffsetYChange,
+  onOpacityChange
 }: GlobeControlsProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const [showVisitorMarker, setShowVisitorMarker] = useState(
@@ -298,6 +300,25 @@ const GlobeControls = ({
                 </div>
                 <div className="text-xs text-white/50 mt-1">
                   Color of the halo/glow around the globe
+                </div>
+              </div>
+              
+              <div>
+                <div className="flex justify-between mb-1">
+                  <Label htmlFor="globe-opacity" className="block text-xs text-indigo-200">Globe Transparency</Label>
+                  <span className="text-xs text-white/70">{Math.round(settings.opacity * 100)}%</span>
+                </div>
+                <Slider 
+                  id="globe-opacity"
+                  min={0.1}
+                  max={1}
+                  step={0.05}
+                  value={[settings.opacity]}
+                  onValueChange={(value) => onOpacityChange && onOpacityChange(value[0])}
+                  className="w-full"
+                />
+                <div className="text-xs text-white/50 mt-1">
+                  Adjust the transparency of the globe
                 </div>
               </div>
               

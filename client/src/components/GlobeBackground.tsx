@@ -30,6 +30,7 @@ interface CustomCOBEOptions {
   glowColor: [number, number, number];
   scale: number;
   pointSize?: number;
+  opacity?: number; // Add opacity option
   markers: LocationMarker[];
   onRender: (state: any) => void;
 }
@@ -240,26 +241,26 @@ const GlobeBackground = ({ settings }: GlobeBackgroundProps) => {
       let currentPhi = phiRef.current;
       let currentTheta = thetaRef.current;
       
-      // Calculate optimal point size based on globe size and dot size settings
-      // This creates a responsive sizing system
-      const optimalPointSize = settings.dotSize * 0.6;
+      // Using a fixed point size for consistency and visibility
+      // This ensures the land dots are always visible at different screen sizes
       
       // Set up COBE options
       const options: CustomCOBEOptions = {
-        devicePixelRatio: window.devicePixelRatio || 1,
-        width: window.innerWidth * 2, // Larger canvas for better quality
-        height: window.innerHeight * 2, // Larger canvas for better quality
+        devicePixelRatio: 2, // Set fixed device pixel ratio for consistent quality
+        width: Math.min(window.innerWidth, 1200), // Limited width to avoid excessive details
+        height: Math.min(window.innerHeight, 1200), // Limited height to avoid excessive details
         phi: currentPhi,
         theta: currentTheta,
-        dark: 1.0, // Full darkness for better contrast
-        diffuse: 1.2, // Slightly increased diffuse for better visibility of land
-        mapSamples: 20000, // Higher sample count for smoother appearance
-        mapBrightness: 4.0, // Brighter map for better visibility
+        dark: 0.3, // Minimal darkness for better visibility of landmass
+        diffuse: 1.8, // Higher diffuse for better visibility of dots
+        mapSamples: 24000, // Higher sample count for better land definition
+        mapBrightness: 16.0, // Much higher brightness to ensure land dots are visible
         baseColor: [...settings.landColor],
-        markerColor: [1, 1, 1], // White marker base
+        markerColor: [1, 0.8, 0.5], // Warm marker base
         glowColor: [...settings.haloColor],
         scale: settings.globeSize,
-        pointSize: optimalPointSize,
+        pointSize: 2.0, // Increased point size to ensure visibility
+        opacity: settings.opacity, // Use the opacity setting
         markers: visitorMarkers,
         onRender: (state) => {
           // Auto rotation when not interacting
@@ -392,17 +393,17 @@ const GlobeBackground = ({ settings }: GlobeBackgroundProps) => {
           top: `calc(50% + ${settings.offsetY}%)`,
           left: `calc(50% + ${settings.offsetX}%)`,
           transform: "translate(-50%, -50%)",
-          width: `${90 * settings.globeSize}vh`, 
-          height: `${90 * settings.globeSize}vh`, 
+          width: `${Math.min(100, 70 * settings.globeSize)}vh`, 
+          height: `${Math.min(100, 70 * settings.globeSize)}vh`, 
           borderRadius: "50%",
-          background: "radial-gradient(circle, rgba(30,100,200,0.2) 0%, rgba(10,60,180,0.08) 50%, rgba(0,0,0,0) 70%)",
-          boxShadow: "0 0 150px 20px rgba(30,70,180,0.12)",
+          background: "radial-gradient(circle, rgba(40,120,220,0.15) 0%, rgba(20,80,200,0.08) 40%, rgba(0,0,0,0) 70%)",
+          boxShadow: "0 0 120px 15px rgba(30,70,180,0.1)",
           zIndex: 0,
           pointerEvents: "none"
         }}
       />
       
-      {/* Main globe canvas */}
+      {/* Main globe canvas - with sized dimensions for better quality and control */}
       <canvas
         ref={canvasRef}
         style={{
@@ -410,8 +411,8 @@ const GlobeBackground = ({ settings }: GlobeBackgroundProps) => {
           top: `calc(50% + ${settings.offsetY}%)`,
           left: `calc(50% + ${settings.offsetX}%)`,
           transform: "translate(-50%, -50%)",
-          width: "100%", 
-          height: "100%",
+          width: `${Math.min(100, 90 * settings.globeSize)}vw`, 
+          height: `${Math.min(100, 90 * settings.globeSize)}vh`,
           cursor: "grab",
           touchAction: "none",
           zIndex: 1
