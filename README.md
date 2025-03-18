@@ -51,6 +51,11 @@ Edit the settings in globe.js to customize:
 - \`offsetX\`: Horizontal position offset in percentage (-50 to 50)
 - \`offsetY\`: Vertical position offset in percentage (-50 to 50)
 
+## Other Development Notes
+
+The codebase includes a partially developed “Glitch” setting, which is currently a placeholder for future functionality. Additionally, there’s a fully coded but inactive “Arches” setting. This feature was intended to display dynamic arches representing new visitors interacting with the landing page. However, development was paused due to persistent rendering issues — the arches refused to stay anchored to the globe’s surface, instead floating randomly in space.
+
+If anyone successfully resolves the issues with either the “Glitch” or “Arches” settings, please share your solution in the repository’s Discussions section. I’d be more than happy to review the code and integrate it after ensuring it doesn’t disrupt other functionality.
 ## Credits
 
 This package uses the COBE library (https://github.com/shuding/cobe) for the WebGL globe rendering.
