@@ -1,8 +1,9 @@
 import GlobeBackground from "@/components/GlobeBackground";
 import GlobeControls from "@/components/GlobeControls";
 import DownloadPackage from "@/components/DownloadPackage";
-import { useGlobeSettings, RGBColor } from "@/hooks/useGlobeSettings";
-import { GlobeIcon, Github, Zap } from "lucide-react";
+import { useGlobeSettings, RGBColor, LocationCoordinates } from "@/hooks/useGlobeSettings";
+import { GlobeIcon, Github, Zap, Eye } from "lucide-react";
+import { Link } from "wouter";
 
 export default function Home() {
   const {
@@ -14,7 +15,11 @@ export default function Home() {
     updateAutoRotate,
     updateLandColor,
     updateHaloColor,
-    updateGlitchEffect
+    updateGlitchEffect,
+    updateShowArcs,
+    updateArcColor,
+    updateHeadquartersLocation,
+    updateShowVisitorMarkers
   } = useGlobeSettings();
   
   return (
@@ -29,15 +34,23 @@ export default function Home() {
             Interactive Globe
           </span>
         </div>
-        <a
-          href="https://github.com"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center gap-2 text-sm text-white/70 hover:text-white transition-colors py-1 px-3 rounded-full bg-white/5 hover:bg-white/10"
-        >
-          <Github className="h-4 w-4" />
-          <span className="hidden sm:inline">View on GitHub</span>
-        </a>
+        <div className="flex items-center gap-2">
+          <Link href="/preview">
+            <button className="flex items-center gap-2 text-sm text-white/70 hover:text-white transition-colors py-1 px-3 rounded-full bg-indigo-500/30 hover:bg-indigo-500/50 mr-2">
+              <Eye className="h-4 w-4" />
+              <span className="hidden sm:inline">Preview Mode</span>
+            </button>
+          </Link>
+          <a
+            href="https://github.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2 text-sm text-white/70 hover:text-white transition-colors py-1 px-3 rounded-full bg-white/5 hover:bg-white/10"
+          >
+            <Github className="h-4 w-4" />
+            <span className="hidden sm:inline">View on GitHub</span>
+          </a>
+        </div>
       </header>
       
       {/* Page content that will appear above the globe */}
@@ -78,6 +91,28 @@ export default function Home() {
                 <Zap className="h-4 w-4 text-yellow-400" />
               </h3>
               <p className="text-sm text-white/70">Custom colors, glitch effects, and futuristic visual touches.</p>
+            </div>
+          </div>
+          
+          {/* Preview mode callout */}
+          <div className="mt-8 p-4 bg-indigo-900/30 border border-indigo-500/30 rounded-lg">
+            <div className="flex items-start gap-4">
+              <div className="bg-indigo-500/20 p-2 rounded-full">
+                <Eye className="h-5 w-5 text-indigo-300" />
+              </div>
+              <div>
+                <h3 className="text-lg font-medium mb-1 text-indigo-200">Preview Mode</h3>
+                <p className="text-sm text-white/70 mb-3">
+                  For a clearer view of the globe while adjusting settings, use our dedicated Preview Mode.
+                  This provides a distraction-free environment where you can see exactly how your changes affect the globe.
+                </p>
+                <Link href="/preview">
+                  <button className="flex items-center gap-2 text-sm text-white bg-indigo-600/50 hover:bg-indigo-600/70 transition-colors py-1.5 px-4 rounded-md">
+                    <Eye className="h-4 w-4" />
+                    <span>Enter Preview Mode</span>
+                  </button>
+                </Link>
+              </div>
             </div>
           </div>
           
@@ -137,6 +172,10 @@ export default function Home() {
         onLandColorChange={updateLandColor}
         onHaloColorChange={updateHaloColor}
         onGlitchEffectChange={updateGlitchEffect}
+        onShowArcsChange={updateShowArcs}
+        onArcColorChange={updateArcColor}
+        onHeadquartersLocationChange={updateHeadquartersLocation}
+        onShowVisitorMarkersChange={updateShowVisitorMarkers}
       />
     </>
   );

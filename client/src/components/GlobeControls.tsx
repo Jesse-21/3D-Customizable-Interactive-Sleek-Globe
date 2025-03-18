@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
-import { GlobeSettings, RGBColor } from "@/hooks/useGlobeSettings";
+import { GlobeSettings, RGBColor, LocationCoordinates } from "@/hooks/useGlobeSettings";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { ChevronDown, ChevronUp, MapPin, RotateCcw, Settings, Zap, Palette } from "lucide-react";
+import { ChevronDown, ChevronUp, MapPin, RotateCcw, Settings, Zap, Palette, Share2 } from "lucide-react";
 
 interface GlobeControlsProps {
   settings: GlobeSettings;
@@ -15,6 +15,10 @@ interface GlobeControlsProps {
   onLandColorChange: (value: RGBColor) => void;
   onHaloColorChange: (value: RGBColor) => void;
   onGlitchEffectChange: (value: boolean) => void;
+  onShowArcsChange: (value: boolean) => void;
+  onArcColorChange: (value: RGBColor) => void;
+  onHeadquartersLocationChange: (value: LocationCoordinates) => void;
+  onShowVisitorMarkersChange: (value: boolean) => void;
 }
 
 const GlobeControls = ({
@@ -26,13 +30,17 @@ const GlobeControls = ({
   onAutoRotateChange,
   onLandColorChange,
   onHaloColorChange,
-  onGlitchEffectChange
+  onGlitchEffectChange,
+  onShowArcsChange,
+  onArcColorChange,
+  onHeadquartersLocationChange,
+  onShowVisitorMarkersChange
 }: GlobeControlsProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const [showVisitorMarker, setShowVisitorMarker] = useState(
     localStorage.getItem('showLocationMarkers') !== 'false'
   );
-  const [activeTab, setActiveTab] = useState<'basic' | 'appearance'>('basic');
+  const [activeTab, setActiveTab] = useState<'basic' | 'appearance' | 'connections'>('basic');
   
   // Convert RGB array (0-1 values) to hex color for input fields
   const rgbToHex = (rgb: RGBColor): string => {
@@ -89,6 +97,21 @@ const GlobeControls = ({
     onHaloColorChange(hexToRgb(hexColor));
   };
   
+  const handleArcColorChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const hexColor = e.target.value;
+    onArcColorChange(hexToRgb(hexColor));
+  };
+  
+  // Common city coordinates to use as headquarters options
+  const commonLocations = [
+    { name: "San Francisco", coords: [37.7749, -122.4194] },
+    { name: "New York", coords: [40.7128, -74.0060] },
+    { name: "London", coords: [51.5074, -0.1278] },
+    { name: "Tokyo", coords: [35.6762, 139.6503] },
+    { name: "Sydney", coords: [-33.8688, 151.2093] },
+    { name: "Singapore", coords: [1.3521, 103.8198] }
+  ];
+  
   return (
     <div className={`fixed bottom-4 right-4 z-20 ${isOpen ? 'bg-black/80 backdrop-blur-sm' : 'bg-black/50'} p-4 rounded-lg shadow-lg border border-white/20 transition-all duration-300 ${isOpen ? 'w-80' : 'w-auto'}`}>
       <div className="flex items-center justify-between">
@@ -113,13 +136,19 @@ const GlobeControls = ({
               onClick={() => setActiveTab('basic')}
               className={`flex-1 py-2 px-3 text-xs font-medium ${activeTab === 'basic' ? 'text-indigo-300 border-b-2 border-indigo-500' : 'text-white/70 hover:text-white/90'}`}
             >
-              Basic Settings
+              Basic
             </button>
             <button
               onClick={() => setActiveTab('appearance')}
               className={`flex-1 py-2 px-3 text-xs font-medium ${activeTab === 'appearance' ? 'text-indigo-300 border-b-2 border-indigo-500' : 'text-white/70 hover:text-white/90'}`}
             >
-              Appearance
+              Look
+            </button>
+            <button
+              onClick={() => setActiveTab('connections')}
+              className={`flex-1 py-2 px-3 text-xs font-medium ${activeTab === 'connections' ? 'text-indigo-300 border-b-2 border-indigo-500' : 'text-white/70 hover:text-white/90'}`}
+            >
+              Arcs
             </button>
           </div>
           
@@ -322,6 +351,86 @@ const GlobeControls = ({
                   Matrix
                 </button>
               </div>
+            </div>
+          )}
+          
+          {/* Connections tab */}
+          {activeTab === 'connections' && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1">
+                  <Share2 className="h-3 w-3 text-cyan-400" />
+                  <Label htmlFor="show-arcs" className="text-xs text-indigo-200">Data Connection Arcs</Label>
+                </div>
+                <Switch 
+                  id="show-arcs"
+                  checked={settings.showArcs}
+                  onCheckedChange={onShowArcsChange}
+                />
+              </div>
+              <div className="text-xs text-white/50 mt-1">
+                Show animated arcs connecting headquarters to visitor locations
+              </div>
+              
+              {settings.showArcs && (
+                <>
+                  <div>
+                    <div className="flex justify-between mb-1">
+                      <div className="flex items-center gap-1">
+                        <Palette className="h-3 w-3 text-indigo-300" />
+                        <Label htmlFor="arc-color" className="block text-xs text-indigo-200">Arc Color</Label>
+                      </div>
+                      <input 
+                        type="color"
+                        id="arc-color"
+                        value={rgbToHex(settings.arcColor)}
+                        onChange={handleArcColorChange}
+                        className="w-8 h-6 rounded overflow-hidden cursor-pointer"
+                      />
+                    </div>
+                    <div className="text-xs text-white/50 mt-1">
+                      Color of the connection arcs and data packets
+                    </div>
+                  </div>
+                  
+                  <div className="pt-3 border-t border-white/10">
+                    <div className="mb-2">
+                      <Label className="block text-xs text-indigo-200 mb-1">Headquarters Location</Label>
+                      <div className="flex flex-wrap gap-2 mt-2">
+                        {commonLocations.map((location) => (
+                          <button
+                            key={location.name}
+                            onClick={() => onHeadquartersLocationChange(location.coords as LocationCoordinates)}
+                            className={`py-1 px-2 text-xs ${
+                              settings.headquartersLocation[0] === location.coords[0] && 
+                              settings.headquartersLocation[1] === location.coords[1] 
+                                ? 'bg-indigo-600 text-white' 
+                                : 'bg-gray-800/50 text-gray-300 hover:bg-gray-700/60'
+                            } rounded`}
+                          >
+                            {location.name}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center justify-between pt-2">
+                    <div className="flex items-center gap-1">
+                      <MapPin className="h-3 w-3 text-green-400" />
+                      <Label htmlFor="show-visitor-markers" className="text-xs text-indigo-200">Visitor Markers</Label>
+                    </div>
+                    <Switch 
+                      id="show-visitor-markers"
+                      checked={settings.showVisitorMarkers}
+                      onCheckedChange={onShowVisitorMarkersChange}
+                    />
+                  </div>
+                  <div className="text-xs text-white/50 mt-1">
+                    Show visitor position markers on the globe
+                  </div>
+                </>
+              )}
             </div>
           )}
         </div>

@@ -1,6 +1,32 @@
 import { useEffect, useRef, useState } from "react";
-import { GlobeSettings, RGBColor } from "@/hooks/useGlobeSettings";
+import { GlobeSettings, RGBColor, LocationCoordinates } from "@/hooks/useGlobeSettings";
 import createGlobe from "cobe";
+
+// Helper function to convert lat/long to 3D point for arc visualization
+function coordinatesToPoint(lat: number, lng: number, state: any, scale: number) {
+  // Convert to radians
+  const phi = (90 - lat) * (Math.PI / 180);
+  const theta = (lng + 180) * (Math.PI / 180);
+  
+  // Calculate 3D position
+  const x = -scale * Math.sin(phi) * Math.cos(theta + state.phi);
+  const y = scale * Math.cos(phi);
+  const z = scale * Math.sin(phi) * Math.sin(theta + state.phi);
+  
+  // Check if point is visible (in front of the globe)
+  if (z < 0) return null;
+  
+  // Project 3D point to 2D screen
+  return {
+    x: x * (window.innerWidth / 4),
+    y: y * (window.innerHeight / 4)
+  };
+}
+
+// Helper function for quadratic Bezier calculation for smooth arc animation
+function quadraticBezier(t: number, p0: number, p1: number, p2: number) {
+  return (1 - t) * (1 - t) * p0 + 2 * (1 - t) * t * p1 + t * t * p2;
+}
 
 interface GlobeBackgroundProps {
   settings: GlobeSettings;
@@ -12,6 +38,16 @@ interface LocationMarker {
   size: number;
   color: [number, number, number]; // RGB values normalized to 0-1
   timestamp: number; // Used to track when the marker was added
+}
+
+// Define a connection arc between two points
+interface ConnectionArc {
+  startLat: number;
+  startLng: number;
+  endLat: number;
+  endLng: number;
+  color: [number, number, number]; // RGB values normalized to 0-1
+  progress: number; // Animation progress from 0 to 1
 }
 
 // Define custom options for COBE
@@ -50,12 +86,67 @@ const GlobeBackground = ({ settings }: GlobeBackgroundProps) => {
   const glitchTimerRef = useRef<number | null>(null);
   const originalLandColorRef = useRef<RGBColor>(settings.landColor);
   const lastGlitchTimeRef = useRef<number>(0);
+  // For arc data visualization
+  const [connectionArcs, setConnectionArcs] = useState<ConnectionArc[]>([]);
+  const arcAnimationRef = useRef<number | null>(null);
+  const ctx2dRef = useRef<CanvasRenderingContext2D | null>(null);
   
+  // Helper function to generate random coordinates biased toward populated areas
+  const generateRandomVisitorLocation = (): LocationCoordinates => {
+    // Simple approximation of populated areas by continent
+    const populatedRegions = [
+      // North America
+      { minLat: 25, maxLat: 50, minLng: -130, maxLng: -70, weight: 0.2 },
+      // Europe
+      { minLat: 35, maxLat: 60, minLng: -10, maxLng: 30, weight: 0.3 },
+      // Asia
+      { minLat: 10, maxLat: 50, minLng: 70, maxLng: 140, weight: 0.35 },
+      // Australia
+      { minLat: -40, maxLat: -10, minLng: 110, maxLng: 155, weight: 0.05 },
+      // South America
+      { minLat: -40, maxLat: 10, minLng: -80, maxLng: -40, weight: 0.1 }
+    ];
+    
+    // Select a region based on its weight
+    const random = Math.random();
+    let cumulativeWeight = 0;
+    let selectedRegion = populatedRegions[0];
+    
+    for (const region of populatedRegions) {
+      cumulativeWeight += region.weight;
+      if (random <= cumulativeWeight) {
+        selectedRegion = region;
+        break;
+      }
+    }
+    
+    // Generate a random coordinate within the selected region
+    const lat = selectedRegion.minLat + Math.random() * (selectedRegion.maxLat - selectedRegion.minLat);
+    const lng = selectedRegion.minLng + Math.random() * (selectedRegion.maxLng - selectedRegion.minLng);
+    
+    return [lat, lng];
+  };
+  
+  // Helper function to create a new connection arc
+  const createNewConnectionArc = (): ConnectionArc => {
+    const [startLat, startLng] = settings.headquartersLocation;
+    const [endLat, endLng] = generateRandomVisitorLocation();
+    
+    return {
+      startLat,
+      startLng,
+      endLat,
+      endLng,
+      color: [...settings.arcColor],
+      progress: 0
+    };
+  };
+
   // Get visitor's location when component mounts
   useEffect(() => {
     // Check if user location is stored in localStorage and if it's not older than 30 days
     const storedLocation = localStorage.getItem('visitorLocation');
-    const shouldShowMarkers = localStorage.getItem('showLocationMarkers') !== 'false';
+    const shouldShowMarkers = settings.showVisitorMarkers;
     
     if (storedLocation) {
       try {
@@ -101,10 +192,24 @@ const GlobeBackground = ({ settings }: GlobeBackgroundProps) => {
         },
         (error) => {
           console.log("Geolocation error or permission denied:", error);
+          
+          // Use timezone to approximate location
+          const timezoneOffset = new Date().getTimezoneOffset();
+          // Generate a random location biased by timezone
+          const approximateLocation = generateRandomVisitorLocation();
+          
+          const newMarker: LocationMarker = {
+            location: approximateLocation, 
+            size: 0.1,
+            color: [1, 0.5, 0], // Orange color for visitor dot
+            timestamp: Date.now()
+          };
+          
+          setVisitorMarkers([newMarker]);
         }
       );
     }
-  }, []);
+  }, [settings.showVisitorMarkers]);
   
   // Handle glitch effect
   useEffect(() => {
@@ -178,6 +283,68 @@ const GlobeBackground = ({ settings }: GlobeBackgroundProps) => {
     };
   }, [settings.glitchEffect, settings.landColor]);
   
+  // Handle the arc connection animation
+  useEffect(() => {
+    // Clean up existing animation
+    if (arcAnimationRef.current !== null) {
+      cancelAnimationFrame(arcAnimationRef.current);
+      arcAnimationRef.current = null;
+    }
+    
+    // Only setup arc animation if the feature is enabled
+    if (!settings.showArcs) {
+      setConnectionArcs([]);
+      return;
+    }
+    
+    // Initialize with a few arcs
+    if (connectionArcs.length === 0) {
+      const initialArcs = Array.from({ length: 3 }, () => createNewConnectionArc());
+      setConnectionArcs(initialArcs);
+    }
+    
+    // Animation function for arcs
+    const animateArcs = () => {
+      // Clone the current arcs and update their progress
+      const updatedArcs = connectionArcs.map(arc => {
+        // Advance the animation progress
+        const newProgress = arc.progress + 0.01;
+        
+        // If arc has completed its journey, replace it with a new one
+        if (newProgress >= 1) {
+          return createNewConnectionArc();
+        }
+        
+        // Otherwise update its progress
+        return {
+          ...arc,
+          progress: newProgress
+        };
+      });
+      
+      setConnectionArcs(updatedArcs);
+      
+      // Add a new arc occasionally 
+      if (Math.random() < 0.01 && connectionArcs.length < 10) {
+        setConnectionArcs(prev => [...prev, createNewConnectionArc()]);
+      }
+      
+      // Continue the animation loop
+      arcAnimationRef.current = requestAnimationFrame(animateArcs);
+    };
+    
+    // Start the animation
+    arcAnimationRef.current = requestAnimationFrame(animateArcs);
+    
+    // Cleanup on unmount or when settings change
+    return () => {
+      if (arcAnimationRef.current !== null) {
+        cancelAnimationFrame(arcAnimationRef.current);
+        arcAnimationRef.current = null;
+      }
+    };
+  }, [settings.showArcs, settings.arcColor, settings.headquartersLocation, connectionArcs]);
+  
   // Function to create the globe
   const initGlobe = (useGlitchColors = false) => {
     if (!canvasRef.current) return;
@@ -247,7 +414,66 @@ const GlobeBackground = ({ settings }: GlobeBackgroundProps) => {
           phiRef.current = currentPhi;
           state.theta = currentTheta;
           thetaRef.current = currentTheta;
+          
+          // Render data connection arcs if enabled
+          if (settings.showArcs && connectionArcs.length > 0) {
+            // Get the 2D context if not already obtained
+            if (!ctx2dRef.current && canvasRef.current) {
+              ctx2dRef.current = canvasRef.current.getContext('2d');
+            }
+            
+            const ctx = ctx2dRef.current;
+            if (!ctx) return;
+            
+            // Clear previous arcs
+            ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+            
+            // Draw each connection arc
+            connectionArcs.forEach(arc => {
+              // Calculate current position along the arc based on progress
+              const progress = arc.progress;
+              
+              // Calculate points in 3D space
+              const fromPoint = coordinatesToPoint(arc.startLat, arc.startLng, state, options.scale);
+              const toPoint = coordinatesToPoint(arc.endLat, arc.endLng, state, options.scale);
+              
+              // Draw arc using quadratic curve
+              if (fromPoint && toPoint) {
+                const startX = fromPoint.x + ctx.canvas.width / 2;
+                const startY = fromPoint.y + ctx.canvas.height / 2;
+                const endX = toPoint.x + ctx.canvas.width / 2;
+                const endY = toPoint.y + ctx.canvas.height / 2;
+                
+                // Calculate control point (arc peak)
+                const controlX = (startX + endX) / 2;
+                const controlY = Math.min(startY, endY) - 100; // Arc height
+                
+                // Calculate current point along the path based on progress
+                const currentX = quadraticBezier(progress, startX, controlX, endX);
+                const currentY = quadraticBezier(progress, startY, controlY, endY);
+                
+                // Only draw up to current progress point
+                ctx.beginPath();
+                ctx.moveTo(startX, startY);
+                ctx.quadraticCurveTo(controlX, controlY, currentX, currentY);
+                
+                // Style based on arc color
+                const [r, g, b] = arc.color;
+                ctx.strokeStyle = `rgba(${Math.round(r*255)}, ${Math.round(g*255)}, ${Math.round(b*255)}, 0.75)`;
+                ctx.lineWidth = 2;
+                ctx.stroke();
+                
+                // Draw "data packet" dot at the current position
+                ctx.beginPath();
+                ctx.arc(currentX, currentY, 3, 0, Math.PI * 2);
+                ctx.fillStyle = `rgb(${Math.round(r*255)}, ${Math.round(g*255)}, ${Math.round(b*255)})`;
+                ctx.fill();
+              }
+            });
+          }
         }
+        
+        
       };
       
       // Initialize the globe with createGlobe from the imported package
@@ -399,20 +625,44 @@ const GlobeBackground = ({ settings }: GlobeBackgroundProps) => {
   }, [settings, visitorMarkers]); // Re-create when settings or markers change
   
   return (
-    <canvas
-      ref={canvasRef}
-      style={{
-        position: "fixed",
-        top: 0,
-        left: 0,
-        width: "100%", 
-        height: "100%",
-        background: "#050818",
-        zIndex: 0,
-        cursor: "grab",
-        touchAction: "none"
-      }}
-    />
+    <div style={{ 
+      position: "fixed", 
+      top: 0, 
+      left: 0, 
+      width: "100%", 
+      height: "100%", 
+      background: "#050818",
+      zIndex: 0 
+    }}>
+      {/* Main globe canvas */}
+      <canvas
+        ref={canvasRef}
+        style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          width: "100%", 
+          height: "100%",
+          cursor: "grab",
+          touchAction: "none",
+          zIndex: 1
+        }}
+      />
+      
+      {/* Separate canvas for arc visualizations */}
+      <canvas
+        id="arcs-canvas"
+        style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          width: "100%", 
+          height: "100%",
+          pointerEvents: "none", // Allow interactions to pass through to the globe
+          zIndex: 2
+        }}
+      />
+    </div>
   );
 };
 
