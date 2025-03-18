@@ -1,14 +1,19 @@
 import { useRef, useEffect } from 'react';
 import createGlobe from 'cobe';
 
+interface PointerPosition {
+  x: number;
+  y: number;
+}
+
 const SimpleGlobe = () => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const pointerInteracting = useRef<number | null>(null);
+  const pointerInteracting = useRef<PointerPosition | null>(null);
   const phiRef = useRef(0);
+  const thetaRef = useRef(0);
   
   // Setup globe with simple mouse interaction
   useEffect(() => {
-    let phi = 0;
     let width = 600;
     let height = 600;
     let globe: any;
@@ -33,10 +38,12 @@ const SimpleGlobe = () => {
       onRender: (state: any) => {
         // Auto rotate when not dragging
         if (pointerInteracting.current === null) {
-          phi += 0.005;
+          phiRef.current += 0.005;
         }
-        state.phi = phi;
-        phiRef.current = phi;
+        
+        // Use the reference values which get updated during dragging
+        state.phi = phiRef.current;
+        state.theta = thetaRef.current;
       }
     });
     
@@ -49,7 +56,7 @@ const SimpleGlobe = () => {
   
   // Handle pointer interaction (dragging)
   const handlePointerDown = (e: React.PointerEvent) => {
-    pointerInteracting.current = e.clientX;
+    pointerInteracting.current = { x: e.clientX, y: e.clientY };
     if (canvasRef.current) {
       canvasRef.current.style.cursor = 'grabbing';
     }
@@ -57,9 +64,17 @@ const SimpleGlobe = () => {
   
   const handlePointerMove = (e: React.PointerEvent) => {
     if (pointerInteracting.current !== null) {
-      const delta = e.clientX - pointerInteracting.current;
-      pointerInteracting.current = e.clientX;
-      phiRef.current -= delta / 100;
+      const deltaX = e.clientX - pointerInteracting.current.x;
+      const deltaY = e.clientY - pointerInteracting.current.y;
+      
+      pointerInteracting.current = { x: e.clientX, y: e.clientY };
+      
+      // Update phi based on horizontal movement (left/right rotation)
+      phiRef.current += deltaX / 100;
+      
+      // Update theta based on vertical movement (up/down rotation)
+      // Limit theta to avoid flipping the globe
+      thetaRef.current = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, thetaRef.current + deltaY / 100));
     }
   };
   

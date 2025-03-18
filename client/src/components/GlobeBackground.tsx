@@ -252,7 +252,7 @@ const GlobeBackground = ({ settings }: GlobeBackgroundProps) => {
         }
       ] : [];
 
-      // Absolute minimal COBE example with simple rotation
+      // Complete COBE setup with proper rotation
       const options = {
         devicePixelRatio: window.devicePixelRatio || 2,
         width: 800, 
@@ -263,12 +263,12 @@ const GlobeBackground = ({ settings }: GlobeBackgroundProps) => {
         diffuse: 1.2,
         mapSamples: 16000,
         mapBrightness: 6,
-        baseColor: [0.3, 0.3, 0.3] as [number, number, number],
+        baseColor: settings.landColor,
         markerColor: [0.1, 0.8, 1] as [number, number, number],
-        glowColor: [1, 1, 1] as [number, number, number],
-        markers: [],
-        scale: 1.0,
-        pointSize: 2.5,
+        glowColor: settings.haloColor,
+        markers: visitorMarkers,
+        scale: settings.globeSize,
+        pointSize: settings.dotSize,
         onRender: (state: any) => {
           // Increment frame counter for debugging
           frameCountRef.current += 1;
@@ -281,14 +281,13 @@ const GlobeBackground = ({ settings }: GlobeBackgroundProps) => {
           // Auto rotation when not interacting
           if (settings.autoRotate && pointerInteracting.current === null) {
             // Apply rotation speed based on settings
-            // This factor adjusts how fast the globe spins
             const rotationFactor = settings.rotationSpeed / 100;
             state.phi += rotationFactor;
           }
           
-          // Keep track of current rotation for reinitializing
-          phiRef.current = state.phi;
-          thetaRef.current = state.theta;
+          // Update both phi and theta for proper rotation
+          state.phi = phiRef.current;
+          state.theta = thetaRef.current;
         }
       };
       
@@ -336,7 +335,7 @@ const GlobeBackground = ({ settings }: GlobeBackgroundProps) => {
     };
   }, [settings, visitorMarkers]); // Re-create when settings or markers change
   
-  // Handle pointer interaction
+  // Handle pointer interaction with both horizontal and vertical rotation
   const handlePointerDown = (e: React.PointerEvent) => {
     pointerInteracting.current = e.clientX;
     pointerInteractionMovement.current = 0;
@@ -347,13 +346,22 @@ const GlobeBackground = ({ settings }: GlobeBackgroundProps) => {
   
   const handlePointerMove = (e: React.PointerEvent) => {
     if (pointerInteracting.current !== null) {
-      const delta = e.clientX - pointerInteracting.current;
-      pointerInteractionMovement.current = delta;
-      pointerInteracting.current = e.clientX;
+      const deltaX = e.clientX - pointerInteracting.current;
+      const deltaY = e.clientY - pointerInteractionMovement.current;
       
-      // Make sensitivity adjustable, using the setting to control how responsive the globe is
-      const adjustedDelta = delta * (settings.mouseSensitivity / 40);
-      phiRef.current -= adjustedDelta / 100;
+      pointerInteracting.current = e.clientX;
+      pointerInteractionMovement.current = e.clientY;
+      
+      // Make sensitivity adjustable using the settings
+      const sensitivityFactor = settings.mouseSensitivity / 40;
+      
+      // Update phi based on horizontal movement (left/right rotation)
+      phiRef.current += deltaX * sensitivityFactor / 100;
+      
+      // Update theta based on vertical movement (up/down rotation)
+      // Limit theta to avoid flipping the globe
+      thetaRef.current = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, 
+        thetaRef.current + deltaY * sensitivityFactor / 100));
     }
   };
   
@@ -364,24 +372,33 @@ const GlobeBackground = ({ settings }: GlobeBackgroundProps) => {
     }
   };
   
-  // Handle touch events
+  // Handle touch events with both horizontal and vertical rotation
   const handleTouchStart = (e: React.TouchEvent) => {
     if (e.touches.length !== 1) return;
     const touch = e.touches[0];
     pointerInteracting.current = touch.clientX;
-    pointerInteractionMovement.current = 0;
+    pointerInteractionMovement.current = touch.clientY;
   };
   
   const handleTouchMove = (e: React.TouchEvent) => {
     if (pointerInteracting.current === null || e.touches.length !== 1) return;
     const touch = e.touches[0];
-    const delta = touch.clientX - pointerInteracting.current;
-    pointerInteractionMovement.current = delta;
-    pointerInteracting.current = touch.clientX;
+    const deltaX = touch.clientX - pointerInteracting.current;
+    const deltaY = touch.clientY - pointerInteractionMovement.current;
     
-    // Make sensitivity adjustable, similar to pointer movement
-    const adjustedDelta = delta * (settings.mouseSensitivity / 40);
-    phiRef.current -= adjustedDelta / 100;
+    pointerInteracting.current = touch.clientX;
+    pointerInteractionMovement.current = touch.clientY;
+    
+    // Make sensitivity adjustable using the settings
+    const sensitivityFactor = settings.mouseSensitivity / 40;
+    
+    // Update phi based on horizontal movement (left/right rotation)
+    phiRef.current += deltaX * sensitivityFactor / 100;
+    
+    // Update theta based on vertical movement (up/down rotation)
+    // Limit theta to avoid flipping the globe
+    thetaRef.current = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, 
+      thetaRef.current + deltaY * sensitivityFactor / 100));
   };
   
   const handleTouchEnd = () => {

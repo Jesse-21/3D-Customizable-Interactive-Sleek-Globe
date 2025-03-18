@@ -10,8 +10,8 @@ import SimpleGlobe from "@/components/SimpleGlobe";
 function Router() {
   return (
     <Switch>
-      <Route path="/" component={SimpleGlobe} />
-      <Route path="/home" component={Home} />
+      <Route path="/" component={Home} />
+      <Route path="/simple" component={SimpleGlobe} />
       <Route path="/preview" component={Preview} />
       {/* Fallback to 404 */}
       <Route component={NotFound} />
