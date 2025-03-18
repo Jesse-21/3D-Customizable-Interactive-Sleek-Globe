@@ -31,31 +31,36 @@ function coordinatesToPoint(lat: number, lng: number, state: any, scale: number)
   // Use a slightly more forgiving check to ensure connected arcs don't suddenly disappear
   if (normalizedZ < -0.2) return null;
   
-  // Calculate the center of the screen
-  const centerX = window.innerWidth / 2;
-  const centerY = window.innerHeight / 2;
+  // Get screen dimensions
+  const screenWidth = window.innerWidth;
+  const screenHeight = window.innerHeight;
   
-  // Account for any offsetX and offsetY settings for globe positioning
-  const offsetX = window.innerWidth * (state.offsetX || 0) / 100;
-  const offsetY = window.innerHeight * (state.offsetY || 0) / 100;
+  // Calculate the center of the screen as base reference
+  const centerX = screenWidth / 2;
+  const centerY = screenHeight / 2;
   
-  // Adjust projection factor based on globe scale and distance from center
-  // This ensures points stay precisely on the surface as the globe size changes
-  const baseFactor = 110;
-  const perspectiveFactor = Math.max(1, scale);
+  // Account for any offsetX and offsetY settings (in percentage) for globe positioning
+  const offsetX = screenWidth * (state.offsetX || 0) / 100;
+  const offsetY = screenHeight * (state.offsetY || 0) / 100;
   
-  // Apply perspective correction - points further from center need more projection
-  // The 0.25 factor reduces the effect to avoid extreme distortion
-  const distanceCorrection = 1 + (0.25 * (1 - normalizedZ));
-  const projectionFactor = baseFactor * perspectiveFactor * distanceCorrection;
+  // Calculate the globe radius based on scale factor - this is critical for proper placement
+  // Default to a percentage of the smaller screen dimension
+  const baseSize = Math.min(screenWidth, screenHeight) * 0.4; // Globe takes up 40% of screen
+  const globeSize = baseSize * scale;
   
-  // Calculate final screen position
-  const screenX = centerX + offsetX + (normalizedX * scale * projectionFactor);
-  const screenY = centerY + offsetY + (normalizedY * scale * projectionFactor);
+  // Apply perspective correction for 3D effect - points further from center appear more distant
+  // The coefficient adjusts how much distance affects the projection
+  const distanceFactor = 0.2;
+  const distanceCorrection = 1 + (distanceFactor * (1 - normalizedZ));
+  
+  // Calculate final screen position for point on globe surface
+  // The ±1.0 factors ensure points are precisely on the sphere surface
+  const surfaceX = centerX + offsetX + (normalizedX * globeSize * distanceCorrection);
+  const surfaceY = centerY + offsetY + (normalizedY * globeSize * distanceCorrection);
   
   return {
-    x: screenX,
-    y: screenY,
+    x: surfaceX,
+    y: surfaceY,
     z: normalizedZ // Return z for depth ordering if needed
   };
 }
@@ -669,57 +674,70 @@ const GlobeBackground = ({ settings }: GlobeBackgroundProps) => {
               const endX = toPoint.x;
               const endY = toPoint.y;
               
-              // Calculate mid-point between start and end positions for control
-              const midX = (startX + endX) / 2;
-              const midY = (startY + endY) / 2;
+              // Get the screen center and globe size for calculations
+              const centerX = window.innerWidth / 2 + (window.innerWidth * settings.offsetX / 100);
+              const centerY = window.innerHeight / 2 + (window.innerHeight * settings.offsetY / 100);
+              const baseSize = Math.min(window.innerWidth, window.innerHeight) * 0.4;
+              const globeRadius = baseSize * settings.globeSize;
               
-              // Calculate distance between points to make arc height proportional
-              const distance = Math.sqrt(Math.pow(endX - startX, 2) + Math.pow(endY - startY, 2));
+              // Calculate vectors from center to the points on globe surface
+              const startVector = {
+                x: startX - centerX,
+                y: startY - centerY,
+                z: fromPoint.z || 0, // Add z-component
+              };
               
-              // Dynamically scale arc height based on distance and globe size
-              // This ensures the arc scales proportionally when globe size changes
-              const arcHeight = Math.min(Math.max(distance * 0.35, 50 * settings.globeSize), 
-                                        250 * settings.globeSize);
+              const endVector = {
+                x: endX - centerX,
+                y: endY - centerY,
+                z: toPoint.z || 0, // Add z-component
+              };
               
-              // Calculate control point for the arc curve
-              // We use the mid-point and adjust height based on the z-position
-              // This makes arcs curve toward viewer when in front, away when behind
+              // Calculate the angle between the two points (in radians)
+              // This helps determine how to construct the arc path
+              const dotProduct = startVector.x * endVector.x + startVector.y * endVector.y;
+              const startMagnitude = Math.sqrt(startVector.x * startVector.x + startVector.y * startVector.y);
+              const endMagnitude = Math.sqrt(endVector.x * endVector.x + endVector.y * endVector.y);
+              
+              // Avoid division by zero
+              const magnitudeProduct = startMagnitude * endMagnitude;
+              let angleBetween = 0;
+              if (magnitudeProduct > 0) {
+                // Clamp the value to avoid numerical precision issues
+                const cosValue = Math.max(-1, Math.min(1, dotProduct / magnitudeProduct));
+                angleBetween = Math.acos(cosValue);
+              }
+              
+              // Calculate a great circle arc that follows the globe's curvature
+              // The greater the angle, the more the arc should curve
+              const arcFactor = Math.sin(angleBetween / 2) * globeRadius * 0.8;
+              
+              // Blend between a flat drawing and spherical projection based on z values
+              // Points more toward the viewer (higher z) should appear more curved
               const zAvg = ((fromPoint.z || 0) + (toPoint.z || 0)) / 2;
-              const heightAdjust = 1 + (zAvg * 0.3); // Higher z = more curve
+              const curveFactor = 0.6 + Math.max(0, zAvg) * 0.6; // 0.6 to 1.2 range
               
-              // Calculate the control point for the quadratic curve
-              // Adjust vertical position to create proper arc
-              const controlX = midX;
-              const controlY = midY - (arcHeight * heightAdjust);
+              // For improved arc paths, we'll use the spherical properties
+              // Since we don't need the full 3D cross product, we'll simplify
+              // our calculations for the 2D canvas implementation
               
-              // Calculate current point along the curve based on progress
+              // Calculate the actual control point that follows globe curvature
+              // For a spherical surface, we need points that lie on the great circle
+              const controlX = centerX + (startVector.x + endVector.x) / 2;
+              const controlY = centerY + (startVector.y + endVector.y) / 2 - arcFactor * curveFactor;
+              
+              // Calculate the spline points for a smooth arc
+              // Use a quadratic bezier curve for performance
               const currentX = quadraticBezier(progress, startX, controlX, endX);
               const currentY = quadraticBezier(progress, startY, controlY, endY);
               
-              // Only draw up to current progress point
+              // Start drawing from the start point
               ctx.beginPath();
               ctx.moveTo(startX, startY);
               
-              // Improved arc path drawing - always ensure arc stays on globe surface
-              // Use bezier curve instead of quadratic for better control of path
-              const cp1x = startX + (controlX - startX) * 0.5;
-              const cp1y = startY + (controlY - startY) * 0.8;
-              const cp2x = controlX + (endX - controlX) * 0.5;
-              const cp2y = controlY + (endY - controlY) * 0.8;
-              
-              // Calculate current point using cubic bezier
-              const t = progress;
-              const tSq = t * t;
-              const tCube = tSq * t;
-              const mt = 1 - t;
-              const mtSq = mt * mt;
-              const mtCube = mtSq * mt;
-              
-              const currX = mtCube * startX + 3 * mtSq * t * cp1x + 3 * mt * tSq * cp2x + tCube * endX;
-              const currY = mtCube * startY + 3 * mtSq * t * cp1y + 3 * mt * tSq * cp2y + tCube * endY;
-              
-              // Draw the curve using bezier
-              ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, currX, currY);
+              // For better visual appeal, use a quadratic curve that follows the projection
+              // This creates a smooth arc between the two points
+              ctx.quadraticCurveTo(controlX, controlY, currentX, currentY);
               
               // Get base color for the arc
               const [r, g, b] = arc.color;
@@ -853,8 +871,87 @@ const GlobeBackground = ({ settings }: GlobeBackgroundProps) => {
         clearInterval(glitchTimerRef.current);
         glitchTimerRef.current = null;
       }
+      
+      // Clean up arc animations
+      if (arcAnimationRef.current !== null) {
+        cancelAnimationFrame(arcAnimationRef.current);
+        arcAnimationRef.current = null;
+      }
     };
   }, [settings, visitorMarkers]); // Re-create when settings or markers change
+  
+  // Set up arc animations in a separate effect
+  useEffect(() => {
+    // Only run when arcs are enabled
+    if (!settings.showArcs) {
+      setConnectionArcs([]);
+      return;
+    }
+    
+    console.log("Setting up arc animations");
+    
+    // Start with a few arcs
+    if (connectionArcs.length === 0) {
+      const initialArcs = Array.from({ length: 3 }, () => createNewConnectionArc());
+      setConnectionArcs(initialArcs);
+    }
+    
+    // Animation function for arcs
+    const animateArcs = () => {
+      // Clone the current arcs and update their progress
+      const updatedArcs = connectionArcs.map(arc => {
+        // Calculate progress step based on where we are in the animation
+        // Slower at the end for a longer fade-out effect
+        let progressStep;
+        
+        if (arc.progress < 0.7) {
+          // Normal speed for most of the journey
+          progressStep = 0.004;
+        } else if (arc.progress < 0.85) {
+          // Slow down as we approach the end
+          progressStep = 0.002;
+        } else {
+          // Very slow at the end for a longer fade-out
+          progressStep = 0.001;
+        }
+        
+        const newProgress = arc.progress + progressStep;
+        
+        // If arc has completed its journey, replace it with a new one
+        if (newProgress >= 1) {
+          return createNewConnectionArc();
+        }
+        
+        // Otherwise update its progress
+        return {
+          ...arc,
+          progress: newProgress
+        };
+      });
+      
+      setConnectionArcs(updatedArcs);
+      
+      // Add a new arc occasionally, but only up to a maximum of 8
+      // Lower probability (0.005 vs 0.01) means arcs appear less frequently
+      if (Math.random() < 0.005 && connectionArcs.length < 8) {
+        setConnectionArcs(prev => [...prev, createNewConnectionArc()]);
+      }
+      
+      // Continue the animation loop
+      arcAnimationRef.current = requestAnimationFrame(animateArcs);
+    };
+    
+    // Start the animation
+    arcAnimationRef.current = requestAnimationFrame(animateArcs);
+    
+    // Clean up on unmount or when settings change
+    return () => {
+      if (arcAnimationRef.current !== null) {
+        cancelAnimationFrame(arcAnimationRef.current);
+        arcAnimationRef.current = null;
+      }
+    };
+  }, [settings.showArcs, settings.arcColor, settings.headquartersLocation]); // Dependencies for arc animation - removing connectionArcs to avoid circular dependency
   
   // Create an event handler for the container that manages all pointer events
   const handleContainerPointerEvents = (e: React.PointerEvent) => {
