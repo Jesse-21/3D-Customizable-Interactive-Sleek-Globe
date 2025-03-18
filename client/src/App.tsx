@@ -5,12 +5,14 @@ import { Toaster } from "@/components/ui/toaster";
 import NotFound from "@/pages/not-found";
 import Home from "@/pages/Home";
 import Preview from "@/pages/Preview";
+import SimpleGlobe from "@/components/SimpleGlobe";
 
 function Router() {
   return (
     <Switch>
       <Route path="/" component={Home} />
       <Route path="/preview" component={Preview} />
+      <Route path="/globe-test" component={SimpleGlobe} />
       {/* Fallback to 404 */}
       <Route component={NotFound} />
     </Switch>

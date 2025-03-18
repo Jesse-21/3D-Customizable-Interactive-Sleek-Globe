@@ -30,6 +30,9 @@ const GlobeBackground = ({ settings }: GlobeBackgroundProps) => {
   // For automatic marker generation
   const markerGenerationTimerRef = useRef<number | null>(null);
   
+  // For debugging
+  const frameCountRef = useRef(0);
+  
   // Helper function to validate and normalize coordinates
   const validateCoordinates = (lat: number, lng: number): [number, number] => {
     // Constrain latitude to -85 to 85 degrees (avoid poles for better visibility)
@@ -249,25 +252,32 @@ const GlobeBackground = ({ settings }: GlobeBackgroundProps) => {
         }
       ] : [];
 
+      // Absolute minimal COBE example with simple rotation
       const options = {
         devicePixelRatio: window.devicePixelRatio || 2,
-        width: 800,
+        width: 800, 
         height: 800,
         phi: currentPhi,
         theta: currentTheta,
-        dark: 0.85, // This sets the ocean/background color (higher = darker ocean)
-        diffuse: 1.8, // Higher value makes dots more visible
-        mapSamples: 40000, // Higher value shows more dots
-        mapBrightness: 20, // Higher value makes dots brighter
-        mapBasedOnGlitchEffect: settings.glitchEffect, // Use glitch effect if enabled
-        baseColor: settings.landColor, // Use user-selected land color for the land points
-        markerColor: [1, 0.5, 0.2] as [number, number, number], // Orange for visitor markers
-        glowColor: settings.haloColor, // Use user-selected halo color
-        scale: 1.2, // Slightly larger scale for better visibility
-        pointSize: settings.dotSize * 2.0, // User-controlled dot size
-        markers: visitorMarkers,
-        arcs: arcs,
+        dark: 1,
+        diffuse: 1.2,
+        mapSamples: 16000,
+        mapBrightness: 6,
+        baseColor: [0.3, 0.3, 0.3] as [number, number, number],
+        markerColor: [0.1, 0.8, 1] as [number, number, number],
+        glowColor: [1, 1, 1] as [number, number, number],
+        markers: [],
+        scale: 1.0,
+        pointSize: 2.5,
         onRender: (state: any) => {
+          // Increment frame counter for debugging
+          frameCountRef.current += 1;
+          
+          // Log every 100 frames to avoid console spam
+          if (frameCountRef.current % 100 === 0) {
+            console.log(`Globe render frame #${frameCountRef.current}`);
+          }
+          
           // Auto rotation when not interacting
           if (settings.autoRotate && pointerInteracting.current === null) {
             // Apply rotation speed based on settings
@@ -408,7 +418,7 @@ const GlobeBackground = ({ settings }: GlobeBackgroundProps) => {
         }}
       />
       
-      {/* Main globe canvas - with sized dimensions for better quality and control */}
+      {/* Main globe canvas */}
       <canvas
         ref={canvasRef}
         width={800}
