@@ -8,20 +8,25 @@ function coordinatesToPoint(lat: number, lng: number, state: any, scale: number)
   const phi = (90 - lat) * (Math.PI / 180);
   const theta = (lng + 180) * (Math.PI / 180);
   
-  // Calculate 3D position
-  const x = -scale * Math.sin(phi) * Math.cos(theta + state.phi);
-  const y = scale * Math.cos(phi);
-  const z = scale * Math.sin(phi) * Math.sin(theta + state.phi);
+  // Calculate normalized 3D position on the unit sphere
+  const nx = -Math.sin(phi) * Math.cos(theta + state.phi);
+  const ny = Math.cos(phi);
+  const nz = Math.sin(phi) * Math.sin(theta + state.phi);
   
   // Check if point is visible (in front of the globe)
-  if (z < 0) return null;
+  if (nz < 0) return null;
   
   // Calculate the center of the screen
   const centerX = window.innerWidth / 2;
   const centerY = window.innerHeight / 2;
   
-  // Projection factor - adjust for more accurate point mapping
-  const projectionFactor = 100;
+  // Adjust projection factor based on globe scale
+  // This ensures points stay on the surface as the globe size changes
+  const projectionFactor = 100 * Math.max(1, scale / 1.2);
+  
+  // Scale coordinates by the globe scale value
+  const x = nx * scale;
+  const y = ny * scale;
   
   // Project 3D point to 2D screen, centered in viewport
   return {
