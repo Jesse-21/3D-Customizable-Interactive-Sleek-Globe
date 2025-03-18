@@ -148,12 +148,7 @@ const GlobeControls = ({
             >
               Look
             </button>
-            <button
-              onClick={() => setActiveTab('connections')}
-              className={`flex-1 py-2 px-3 text-xs font-medium ${activeTab === 'connections' ? 'text-indigo-300 border-b-2 border-indigo-500' : 'text-white/70 hover:text-white/90'}`}
-            >
-              Arcs
-            </button>
+            {/* Removed Arcs tab as it's no longer needed */}
             <button
               onClick={() => setActiveTab('position')}
               className={`flex-1 py-2 px-3 text-xs font-medium ${activeTab === 'position' ? 'text-indigo-300 border-b-2 border-indigo-500' : 'text-white/70 hover:text-white/90'}`}
@@ -306,22 +301,7 @@ const GlobeControls = ({
                 </div>
               </div>
               
-              <div className="pt-4 border-t border-white/10">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1">
-                    <Zap className="h-3 w-3 text-yellow-400" />
-                    <Label htmlFor="glitch-effect" className="text-xs text-indigo-200">Glitch Effect</Label>
-                  </div>
-                  <Switch 
-                    id="glitch-effect"
-                    checked={settings.glitchEffect}
-                    onCheckedChange={onGlitchEffectChange}
-                  />
-                </div>
-                <div className="text-xs text-white/50 mt-1">
-                  Adds a futuristic glitch effect that randomly distorts colors
-                </div>
-              </div>
+              {/* Removed glitch effect controls */}
               
               <div className="flex flex-wrap gap-2 pt-3 border-t border-white/10">
                 <button
@@ -446,85 +426,7 @@ const GlobeControls = ({
             </div>
           )}
           
-          {/* Connections tab */}
-          {activeTab === 'connections' && (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1">
-                  <Share2 className="h-3 w-3 text-cyan-400" />
-                  <Label htmlFor="show-arcs" className="text-xs text-indigo-200">Data Connection Arcs</Label>
-                </div>
-                <Switch 
-                  id="show-arcs"
-                  checked={settings.showArcs}
-                  onCheckedChange={onShowArcsChange}
-                />
-              </div>
-              <div className="text-xs text-white/50 mt-1">
-                Show animated arcs connecting headquarters to visitor locations
-              </div>
-              
-              {settings.showArcs && (
-                <>
-                  <div>
-                    <div className="flex justify-between mb-1">
-                      <div className="flex items-center gap-1">
-                        <Palette className="h-3 w-3 text-indigo-300" />
-                        <Label htmlFor="arc-color" className="block text-xs text-indigo-200">Arc Color</Label>
-                      </div>
-                      <input 
-                        type="color"
-                        id="arc-color"
-                        value={rgbToHex(settings.arcColor)}
-                        onChange={handleArcColorChange}
-                        className="w-8 h-6 rounded overflow-hidden cursor-pointer"
-                      />
-                    </div>
-                    <div className="text-xs text-white/50 mt-1">
-                      Color of the connection arcs and data packets
-                    </div>
-                  </div>
-                  
-                  <div className="pt-3 border-t border-white/10">
-                    <div className="mb-2">
-                      <Label className="block text-xs text-indigo-200 mb-1">Headquarters Location</Label>
-                      <div className="flex flex-wrap gap-2 mt-2">
-                        {commonLocations.map((location) => (
-                          <button
-                            key={location.name}
-                            onClick={() => onHeadquartersLocationChange(location.coords as LocationCoordinates)}
-                            className={`py-1 px-2 text-xs ${
-                              settings.headquartersLocation[0] === location.coords[0] && 
-                              settings.headquartersLocation[1] === location.coords[1] 
-                                ? 'bg-indigo-600 text-white' 
-                                : 'bg-gray-800/50 text-gray-300 hover:bg-gray-700/60'
-                            } rounded`}
-                          >
-                            {location.name}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center justify-between pt-2">
-                    <div className="flex items-center gap-1">
-                      <MapPin className="h-3 w-3 text-green-400" />
-                      <Label htmlFor="show-visitor-markers" className="text-xs text-indigo-200">Visitor Markers</Label>
-                    </div>
-                    <Switch 
-                      id="show-visitor-markers"
-                      checked={settings.showVisitorMarkers}
-                      onCheckedChange={onShowVisitorMarkersChange}
-                    />
-                  </div>
-                  <div className="text-xs text-white/50 mt-1">
-                    Show visitor position markers on the globe
-                  </div>
-                </>
-              )}
-            </div>
-          )}
+          {/* Connections tab removed */}
         </div>
       )}
     </div>

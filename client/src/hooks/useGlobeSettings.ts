@@ -38,9 +38,9 @@ export const useGlobeSettings = () => {
       autoRotate: true,
       landColor: [0.3, 0.3, 0.3], // Default gray land color
       haloColor: [1, 1, 1],      // Default white halo
-      glitchEffect: false,       // Glitch effect disabled by default
-      showArcs: true,           // Connection arcs enabled by default
-      arcColor: [0.3, 0.7, 1.0], // Brighter blue arcs
+      glitchEffect: false,       // Permanently disabled
+      showArcs: false,          // Permanently disabled
+      arcColor: [0.3, 0.7, 1.0], // Not used but kept for type compatibility
       headquartersLocation: [37.7749, -122.4194], // Default: San Francisco
       showVisitorMarkers: true,  // Show visitor markers by default
       // Offset to the left side on home page for better visibility with content

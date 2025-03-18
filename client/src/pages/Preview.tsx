@@ -234,7 +234,8 @@ function initGlobe(settings) {
     }
     
     // Create the globe instance
-    globeInstance = COBE(canvasElement, {
+    // Using the global createGlobe from the COBE library loaded in the script tag
+    globeInstance = createGlobe(canvasElement, {
       devicePixelRatio: 2,
       width: canvasElement.width,
       height: canvasElement.height,

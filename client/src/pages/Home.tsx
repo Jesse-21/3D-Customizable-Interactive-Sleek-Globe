@@ -1,7 +1,7 @@
 import GlobeBackground from "@/components/GlobeBackground";
 import DownloadPackage from "@/components/DownloadPackage";
 import { useGlobeSettings } from "@/hooks/useGlobeSettings";
-import { GlobeIcon, Github, Zap, Eye, Settings } from "lucide-react";
+import { GlobeIcon, Github, Zap, Eye } from "lucide-react";
 import { Link } from "wouter";
 
 export default function Home() {
@@ -49,10 +49,10 @@ export default function Home() {
             <a href="#download" className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-medium py-2 px-6 rounded-lg hover:opacity-90 transition duration-200 text-center">
               Download For Your Site
             </a>
-            <Link href="/settings">
+            <Link href="/preview">
               <button className="border border-white/20 py-2 px-6 rounded-lg hover:bg-white/5 transition duration-200 flex items-center justify-center gap-2">
-                <Settings className="h-4 w-4" />
-                <span>Customize Settings</span>
+                <Eye className="h-4 w-4" />
+                <span>Preview Mode</span>
               </button>
             </Link>
           </div>
@@ -136,26 +136,48 @@ export default function Home() {
             </div>
           </div>
           
-          {/* Customize Globe section at the end of the landing page */}
+          {/* Additional information about the Preview section */}
           <div id="customize-section" className="mt-16 pt-6 border-t border-white/10">
-            <h2 className="text-2xl font-bold mb-6 text-white">Customize Your Globe</h2>
+            <h2 className="text-2xl font-bold mb-6 text-white">Experience the Globe in Preview Mode</h2>
             <p className="text-white/70 mb-6">
-              Want to personalize your globe? Visit our dedicated settings page to adjust colors, 
-              animation effects, and interactive behaviors to match your website's design.
+              For the best viewing experience and to see the full interactive capabilities of the globe, 
+              try our distraction-free Preview Mode where you can focus entirely on the visualization.
             </p>
-            <Link href="/settings">
+            <Link href="/preview">
               <button className="flex items-center gap-2 text-white font-medium bg-gradient-to-r from-indigo-600 to-purple-600 py-2.5 px-6 rounded-lg hover:opacity-90 transition duration-200">
-                <Settings className="h-5 w-5" />
-                <span>Customize Globe Settings</span>
+                <Eye className="h-5 w-5" />
+                <span>Enter Preview Mode</span>
               </button>
             </Link>
           </div>
         </div>
       </div>
       
-      {/* Footer */}
-      <footer className="relative z-10 w-full text-center py-6 mt-8 text-white/50 text-sm">
-        Built with React, TypeScript, Tailwind CSS and COBE
+      {/* Enhanced Footer with more information */}
+      <footer className="relative z-10 w-full bg-black/30 backdrop-blur-sm text-center py-8 mt-8 text-white/60 text-sm">
+        <div className="container mx-auto px-4">
+          <div className="flex flex-col md:flex-row justify-center items-center gap-4 mb-4">
+            <a 
+              href="https://github.com" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 hover:text-white transition-colors"
+            >
+              <Github className="h-4 w-4" />
+              <span>GitHub Repository</span>
+            </a>
+            <span className="hidden md:inline text-white/30">•</span>
+            <span>Built with React, TypeScript, Tailwind CSS and COBE</span>
+            <span className="hidden md:inline text-white/30">•</span>
+            <Link href="/preview" className="flex items-center gap-2 hover:text-white transition-colors">
+              <Eye className="h-4 w-4" />
+              <span>Preview Mode</span>
+            </Link>
+          </div>
+          <p className="text-white/40 text-xs">
+            Interactive 3D dot globe that functions as a beautiful and engaging website background
+          </p>
+        </div>
       </footer>
     </>
   );
