@@ -19,7 +19,9 @@ export default function Home() {
     updateShowArcs,
     updateArcColor,
     updateHeadquartersLocation,
-    updateShowVisitorMarkers
+    updateShowVisitorMarkers,
+    updateOffsetX,
+    updateOffsetY
   } = useGlobeSettings();
   
   return (
@@ -53,9 +55,19 @@ export default function Home() {
         </div>
       </header>
       
-      {/* Page content that will appear above the globe */}
-      <div className="relative z-10 min-h-screen flex flex-col items-center justify-center px-4 sm:px-6 lg:px-8">
-        <div className="max-w-4xl w-full bg-black/40 backdrop-blur-md p-8 rounded-xl border border-white/10 shadow-xl">
+      {/* Welcome message that highlights the globe's presence on the left */}
+      <div className="relative z-10 pointer-events-none">
+        <div className="absolute top-1/3 left-1/4 transform -translate-x-1/2 -translate-y-1/2 text-center">
+          <div className="text-2xl md:text-3xl font-light mb-2 text-white/80">
+            <span className="animate-pulse">⟵</span> Interactive Globe
+          </div>
+          <p className="text-sm text-white/60">Rotate and explore</p>
+        </div>
+      </div>
+      
+      {/* Main content positioned to the right, allowing the globe to be fully visible on the left */}
+      <div className="relative z-10 min-h-screen flex flex-col items-end justify-center px-4 sm:px-6 lg:px-8">
+        <div className="max-w-2xl ml-auto mr-0 bg-black/40 backdrop-blur-md p-8 rounded-xl border border-white/10 shadow-xl">
           <h1 className="text-4xl sm:text-5xl font-bold mb-6 bg-gradient-to-r from-white to-indigo-200 bg-clip-text text-transparent">
             Interactive 3D Globe Background
           </h1>
@@ -177,6 +189,8 @@ export default function Home() {
           onArcColorChange={updateArcColor}
           onHeadquartersLocationChange={updateHeadquartersLocation}
           onShowVisitorMarkersChange={updateShowVisitorMarkers}
+          onOffsetXChange={updateOffsetX}
+          onOffsetYChange={updateOffsetY}
         />
       </div>
     </>

@@ -16,10 +16,17 @@ function coordinatesToPoint(lat: number, lng: number, state: any, scale: number)
   // Check if point is visible (in front of the globe)
   if (z < 0) return null;
   
-  // Project 3D point to 2D screen
+  // Calculate the center of the screen
+  const centerX = window.innerWidth / 2;
+  const centerY = window.innerHeight / 2;
+  
+  // Projection factor - adjust for more accurate point mapping
+  const projectionFactor = 100;
+  
+  // Project 3D point to 2D screen, centered in viewport
   return {
-    x: x * (window.innerWidth / 4),
-    y: y * (window.innerHeight / 4)
+    x: centerX + x * projectionFactor,
+    y: centerY + y * projectionFactor
   };
 }
 
@@ -129,16 +136,47 @@ const GlobeBackground = ({ settings }: GlobeBackgroundProps) => {
   
   // Helper function to create a new connection arc
   const createNewConnectionArc = (): ConnectionArc => {
-    const [startLat, startLng] = settings.headquartersLocation;
-    const [endLat, endLng] = generateRandomVisitorLocation();
+    // Create arcs from headquarters to random points 75% of the time
+    // and between random points 25% of the time
+    const useHeadquarters = Math.random() < 0.75;
+    
+    let startLat, startLng, endLat, endLng;
+    
+    if (useHeadquarters) {
+      // Start from headquarters
+      [startLat, startLng] = settings.headquartersLocation;
+      
+      // End at a random location
+      const randomLocation = generateRandomVisitorLocation();
+      [endLat, endLng] = randomLocation;
+    } else {
+      // Both start and end are random locations
+      const randomLocation1 = generateRandomVisitorLocation();
+      const randomLocation2 = generateRandomVisitorLocation();
+      
+      [startLat, startLng] = randomLocation1;
+      [endLat, endLng] = randomLocation2;
+    }
+    
+    // Create a slightly randomized color based on the base arc color
+    // This will create visual variation in the arcs for a more dynamic look
+    const baseColor = [...settings.arcColor];
+    
+    // Brighten the color for better visibility
+    const colorVariation = 0.3; // 30% variation
+    const color: RGBColor = [
+      Math.min(1, baseColor[0] + (Math.random() * colorVariation)),
+      Math.min(1, baseColor[1] + (Math.random() * colorVariation)),
+      Math.min(1, baseColor[2] + (Math.random() * colorVariation))
+    ];
     
     return {
       startLat,
       startLng,
       endLat,
       endLng,
-      color: [...settings.arcColor],
-      progress: 0
+      color, // Use randomized color variation
+      progress: 0 // Start at beginning of animation
     };
   };
 
@@ -297,9 +335,9 @@ const GlobeBackground = ({ settings }: GlobeBackgroundProps) => {
       return;
     }
     
-    // Initialize with a few arcs and setup the arc canvas
+    // Initialize with more arcs and setup the arc canvas
     if (connectionArcs.length === 0) {
-      const initialArcs = Array.from({ length: 3 }, () => createNewConnectionArc());
+      const initialArcs = Array.from({ length: 6 }, () => createNewConnectionArc());
       setConnectionArcs(initialArcs);
       
       // Set up the arc canvas dimensions
@@ -315,8 +353,22 @@ const GlobeBackground = ({ settings }: GlobeBackgroundProps) => {
     const animateArcs = () => {
       // Clone the current arcs and update their progress
       const updatedArcs = connectionArcs.map(arc => {
-        // Advance the animation progress
-        const newProgress = arc.progress + 0.01;
+        // Calculate progress step based on where we are in the animation
+        // Slower at the end for a longer fade-out effect
+        let progressStep;
+        
+        if (arc.progress < 0.7) {
+          // Normal speed for most of the journey
+          progressStep = 0.004;
+        } else if (arc.progress < 0.85) {
+          // Slow down as we approach the end
+          progressStep = 0.002;
+        } else {
+          // Very slow at the end for a longer fade-out
+          progressStep = 0.001;
+        }
+        
+        const newProgress = arc.progress + progressStep;
         
         // If arc has completed its journey, replace it with a new one
         if (newProgress >= 1) {
@@ -332,8 +384,9 @@ const GlobeBackground = ({ settings }: GlobeBackgroundProps) => {
       
       setConnectionArcs(updatedArcs);
       
-      // Add a new arc occasionally 
-      if (Math.random() < 0.01 && connectionArcs.length < 10) {
+      // Add a new arc occasionally, but only up to a maximum of 8
+      // Lower probability (0.005 vs 0.01) means arcs appear less frequently
+      if (Math.random() < 0.005 && connectionArcs.length < 8) {
         setConnectionArcs(prev => [...prev, createNewConnectionArc()]);
       }
       
@@ -370,19 +423,27 @@ const GlobeBackground = ({ settings }: GlobeBackgroundProps) => {
       
       // Apply glitch distortion if requested
       if (useGlitchColors) {
-        // Create a distorted version of the land color
+        // Create a much more dramatic distorted version of the land color
         baseColor = [
-          Math.min(1, settings.landColor[0] + (Math.random() * 0.5 - 0.2)),
-          Math.min(1, settings.landColor[1] + (Math.random() * 0.5 - 0.2)),
-          Math.min(1, settings.landColor[2] + (Math.random() * 0.5 - 0.2)),
+          Math.min(1, Math.abs(settings.landColor[0] + (Math.random() * 1.0 - 0.5))),
+          Math.min(1, Math.abs(settings.landColor[1] + (Math.random() * 1.0 - 0.5))),
+          Math.min(1, Math.abs(settings.landColor[2] + (Math.random() * 1.0 - 0.5))),
         ];
         
-        // Create a distorted version of the glow color
-        glowColor = [
-          Math.min(1, settings.haloColor[0] + (Math.random() * 0.5 - 0.2)),
-          Math.min(1, settings.haloColor[1] + (Math.random() * 0.5 - 0.2)),
-          Math.min(1, settings.haloColor[2] + (Math.random() * 0.5 - 0.2)),
-        ];
+        // Create a dramatic distorted version of the glow color - sometimes invert it
+        if (Math.random() > 0.5) {
+          glowColor = [
+            Math.min(1, Math.abs(1 - settings.haloColor[0])),
+            Math.min(1, Math.abs(1 - settings.haloColor[1])),
+            Math.min(1, Math.abs(1 - settings.haloColor[2])),
+          ];
+        } else {
+          glowColor = [
+            Math.min(1, Math.abs(settings.haloColor[0] + (Math.random() * 1.0 - 0.5))),
+            Math.min(1, Math.abs(settings.haloColor[1] + (Math.random() * 1.0 - 0.5))),
+            Math.min(1, Math.abs(settings.haloColor[2] + (Math.random() * 1.0 - 0.5))),
+          ];
+        }
       }
       
       // Define options for the globe
@@ -436,20 +497,31 @@ const GlobeBackground = ({ settings }: GlobeBackgroundProps) => {
               // Calculate current position along the arc based on progress
               const progress = arc.progress;
               
-              // Calculate points in 3D space
+              // Calculate points in 3D space - these are guaranteed to be on the globe surface
               const fromPoint = coordinatesToPoint(arc.startLat, arc.startLng, state, options.scale);
               const toPoint = coordinatesToPoint(arc.endLat, arc.endLng, state, options.scale);
               
-              // Draw arc using quadratic curve
+              // Draw arc using quadratic curve, but only if both points are visible (not behind the globe)
               if (fromPoint && toPoint) {
-                const startX = fromPoint.x + ctx.canvas.width / 2;
-                const startY = fromPoint.y + ctx.canvas.height / 2;
-                const endX = toPoint.x + ctx.canvas.width / 2;
-                const endY = toPoint.y + ctx.canvas.height / 2;
+                const startX = fromPoint.x;
+                const startY = fromPoint.y;
+                const endX = toPoint.x;
+                const endY = toPoint.y;
                 
                 // Calculate control point (arc peak)
                 const controlX = (startX + endX) / 2;
-                const controlY = Math.min(startY, endY) - 100; // Arc height
+                
+                // Calculate distance between points to make arc height proportional
+                const distance = Math.sqrt(Math.pow(endX - startX, 2) + Math.pow(endY - startY, 2));
+                
+                // Dynamically scale arc height based on distance and globe size
+                // This ensures the arc scales proportionally when globe size changes
+                const arcHeight = Math.min(Math.max(distance * 0.35, 50 * settings.globeSize), 
+                                          250 * settings.globeSize);
+                
+                // Place the control point higher up relative to the points
+                // Use the minimum Y value to ensure arcs curve upward
+                const controlY = Math.min(startY, endY) - arcHeight;
                 
                 // Calculate current point along the path based on progress
                 const currentX = quadraticBezier(progress, startX, controlX, endX);
@@ -460,23 +532,47 @@ const GlobeBackground = ({ settings }: GlobeBackgroundProps) => {
                 ctx.moveTo(startX, startY);
                 ctx.quadraticCurveTo(controlX, controlY, currentX, currentY);
                 
-                // Style based on arc color
+                // Get base color for the arc
                 const [r, g, b] = arc.color;
-                ctx.strokeStyle = `rgba(${Math.round(r*255)}, ${Math.round(g*255)}, ${Math.round(b*255)}, 0.75)`;
-                ctx.lineWidth = 2;
+                
+                // Bullet tracer effect - bright constant color
+                const brightR = Math.min(255, Math.round(r * 255 * 1.5));
+                const brightG = Math.min(255, Math.round(g * 255 * 1.5));
+                const brightB = Math.min(255, Math.round(b * 255 * 1.5));
+                
+                // Calculate trail opacity based on progress
+                // Fade out the tail while keeping the leading edge bright
+                // This creates a fading trail effect behind the "bullet"
+                const trailOpacity = Math.max(0.1, 1 - progress);
+                
+                // Add subtle glow for visibility
+                ctx.shadowColor = `rgba(${brightR}, ${brightG}, ${brightB}, 0.6)`;
+                ctx.shadowBlur = 4 * settings.globeSize;
+                
+                // Draw the arc with fading trail effect
+                const gradient = ctx.createLinearGradient(startX, startY, currentX, currentY);
+                gradient.addColorStop(0, `rgba(${brightR}, ${brightG}, ${brightB}, ${trailOpacity * 0.3})`); // Start faded
+                gradient.addColorStop(0.7, `rgba(${brightR}, ${brightG}, ${brightB}, ${trailOpacity * 0.7})`); // Middle brighter
+                gradient.addColorStop(1, `rgba(${brightR}, ${brightG}, ${brightB}, 0.9)`); // End brightest
+                
+                ctx.strokeStyle = gradient;
+                ctx.lineWidth = 2 * settings.globeSize; // Line width scaled with globe size
                 ctx.stroke();
                 
-                // Draw "data packet" dot at the current position
+                // Remove shadow for bullet dot
+                ctx.shadowColor = 'transparent';
+                ctx.shadowBlur = 0;
+                
+                // Draw "bullet" dot at the current position 
+                const dotSize = 3 * settings.globeSize;
                 ctx.beginPath();
-                ctx.arc(currentX, currentY, 3, 0, Math.PI * 2);
-                ctx.fillStyle = `rgb(${Math.round(r*255)}, ${Math.round(g*255)}, ${Math.round(b*255)})`;
+                ctx.arc(currentX, currentY, dotSize, 0, Math.PI * 2);
+                ctx.fillStyle = `rgb(${brightR}, ${brightG}, ${brightB})`;
                 ctx.fill();
               }
             });
           }
         }
-        
-        
       };
       
       // Initialize the globe with createGlobe from the imported package
@@ -534,6 +630,14 @@ const GlobeBackground = ({ settings }: GlobeBackgroundProps) => {
           // Recreate globe with new dimensions
           initGlobe();
         }
+        
+        // Also resize the arcs canvas
+        const arcCanvas = document.getElementById('arcs-canvas') as HTMLCanvasElement;
+        if (arcCanvas) {
+          arcCanvas.width = window.innerWidth;
+          arcCanvas.height = window.innerHeight;
+          ctx2dRef.current = arcCanvas.getContext('2d');
+        }
       }
     };
     
@@ -566,47 +670,82 @@ const GlobeBackground = ({ settings }: GlobeBackgroundProps) => {
   
   // Create an event handler for the container that manages all pointer events
   const handleContainerPointerEvents = (e: React.PointerEvent) => {
-    // If this is a pointerdown event, start the interaction
-    if (e.type === 'pointerdown') {
-      pointerInteracting.current = e.clientX;
-      pointerInteractionMovement.current = e.clientX;
-      
-      // Set cursor to indicate grabbing
-      if (canvasRef.current) {
-        canvasRef.current.style.setProperty('cursor', 'grabbing');
+    // If cursor is over the globe canvas
+    if (e.target === canvasRef.current) {
+      // If this is a pointerdown event, start the interaction
+      if (e.type === 'pointerdown') {
+        pointerInteracting.current = e.clientX;
+        pointerInteractionMovement.current = e.clientX;
+        
+        // Set cursor to indicate grabbing
+        if (canvasRef.current) {
+          canvasRef.current.style.setProperty('cursor', 'grabbing');
+        }
+        
+        // Prevent default to ensure we capture all events
+        e.preventDefault();
+      } 
+      // If this is a pointerup or pointerleave event, end the interaction
+      else if (e.type === 'pointerup' || e.type === 'pointerleave') {
+        pointerInteracting.current = null;
+        
+        // Reset cursor
+        if (canvasRef.current) {
+          canvasRef.current.style.setProperty('cursor', e.type === 'pointerleave' ? 'auto' : 'grab');
+        }
+      } 
+      // If this is a pointermove event, update the interaction if active
+      else if (e.type === 'pointermove') {
+        if (pointerInteracting.current !== null) {
+          const movementX = e.clientX - pointerInteractionMovement.current;
+          // Adjust movement by sensitivity which can be controlled from settings
+          const adjustedMovement = movementX * (settings.mouseSensitivity / 40);
+          pointerInteractionMovement.current = e.clientX;
+          
+          // Update current rotation directly through the ref
+          phiRef.current += adjustedMovement / 100;
+        }
       }
-    } 
-    // If this is a pointerup or pointerleave event, end the interaction
-    else if (e.type === 'pointerup' || e.type === 'pointerleave') {
-      pointerInteracting.current = null;
-      
-      // Reset cursor
-      if (canvasRef.current) {
-        canvasRef.current.style.setProperty('cursor', e.type === 'pointerleave' ? 'auto' : 'grab');
-      }
-    } 
-    // If this is a pointermove event, update the interaction if active
-    else if (e.type === 'pointermove' && pointerInteracting.current !== null) {
-      pointerInteractionMovement.current = e.clientX;
     }
   };
   
   // Handle touch events for mobile devices
   const handleContainerTouchEvents = (e: React.TouchEvent) => {
-    // Touch start
-    if (e.type === 'touchstart' && e.touches.length === 1) {
-      e.preventDefault();
-      pointerInteracting.current = e.touches[0].clientX;
-      pointerInteractionMovement.current = e.touches[0].clientX;
-    } 
-    // Touch move
-    else if (e.type === 'touchmove' && e.touches.length === 1 && pointerInteracting.current !== null) {
-      e.preventDefault();
-      pointerInteractionMovement.current = e.touches[0].clientX;
-    } 
-    // Touch end
-    else if (e.type === 'touchend') {
-      pointerInteracting.current = null;
+    // Check if we're touching the canvas
+    if (e.target === canvasRef.current) {
+      // Touch start
+      if (e.type === 'touchstart' && e.touches.length === 1) {
+        e.preventDefault();
+        pointerInteracting.current = e.touches[0].clientX;
+        pointerInteractionMovement.current = e.touches[0].clientX;
+        
+        // Set cursor (though not visible on touch devices, this helps maintain state)
+        if (canvasRef.current) {
+          canvasRef.current.style.setProperty('cursor', 'grabbing');
+        }
+      } 
+      // Touch move
+      else if (e.type === 'touchmove' && e.touches.length === 1 && pointerInteracting.current !== null) {
+        e.preventDefault();
+        const touchX = e.touches[0].clientX;
+        const movementX = touchX - pointerInteractionMovement.current;
+        
+        // Adjust movement by sensitivity (same as mouse)
+        const adjustedMovement = movementX * (settings.mouseSensitivity / 40);
+        pointerInteractionMovement.current = touchX;
+        
+        // Update rotation directly through the ref
+        phiRef.current += adjustedMovement / 100;
+      } 
+      // Touch end
+      else if (e.type === 'touchend') {
+        pointerInteracting.current = null;
+        
+        // Reset cursor
+        if (canvasRef.current) {
+          canvasRef.current.style.setProperty('cursor', 'grab');
+        }
+      }
     }
   };
 
@@ -618,7 +757,7 @@ const GlobeBackground = ({ settings }: GlobeBackgroundProps) => {
         left: 0, 
         width: "100%", 
         height: "100%", 
-        background: "#050818",
+        background: "linear-gradient(135deg, #060c21 0%, #0a0a2c 100%)",
         zIndex: 0,
         overflow: "hidden"
       }}
@@ -630,13 +769,49 @@ const GlobeBackground = ({ settings }: GlobeBackgroundProps) => {
       onTouchMove={handleContainerTouchEvents}
       onTouchEnd={handleContainerTouchEvents}
     >
+      {/* Logo placeholder - will be replaced with SVG in future */}
+      <div 
+        style={{
+          position: "absolute",
+          top: "50%",
+          left: "50%",
+          transform: "translate(-50%, -50%)",
+          zIndex: 3,
+          pointerEvents: "none",
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          width: "100%",
+          maxWidth: "500px"
+        }}
+        id="logo-container"
+      />
+      
+      {/* Enhanced glow effect layer */}
+      <div
+        style={{
+          position: "absolute",
+          top: `calc(50% + ${settings.offsetY}%)`,
+          left: `calc(50% + ${settings.offsetX}%)`,
+          transform: "translate(-50%, -50%)",
+          width: "90vh", 
+          height: "90vh", 
+          borderRadius: "50%",
+          background: "radial-gradient(circle, rgba(30,100,200,0.2) 0%, rgba(10,60,180,0.08) 50%, rgba(0,0,0,0) 70%)",
+          boxShadow: "0 0 150px 20px rgba(30,70,180,0.12)",
+          zIndex: 0,
+          pointerEvents: "none"
+        }}
+      />
+      
       {/* Main globe canvas */}
       <canvas
         ref={canvasRef}
         style={{
           position: "absolute",
-          top: 0,
-          left: 0,
+          top: `calc(50% + ${settings.offsetY}%)`,
+          left: `calc(50% + ${settings.offsetX}%)`,
+          transform: "translate(-50%, -50%)",
           width: "100%", 
           height: "100%",
           cursor: "grab",
@@ -659,8 +834,9 @@ const GlobeBackground = ({ settings }: GlobeBackgroundProps) => {
         }}
         style={{
           position: "absolute",
-          top: 0,
-          left: 0,
+          top: `calc(50% + ${settings.offsetY}%)`,
+          left: `calc(50% + ${settings.offsetX}%)`,
+          transform: "translate(-50%, -50%)",
           width: "100%", 
           height: "100%",
           pointerEvents: "none", // Allow interactions to pass through to the globe

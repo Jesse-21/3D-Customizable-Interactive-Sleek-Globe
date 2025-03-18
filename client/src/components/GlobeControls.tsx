@@ -19,6 +19,8 @@ interface GlobeControlsProps {
   onArcColorChange: (value: RGBColor) => void;
   onHeadquartersLocationChange: (value: LocationCoordinates) => void;
   onShowVisitorMarkersChange: (value: boolean) => void;
+  onOffsetXChange?: (value: number) => void;
+  onOffsetYChange?: (value: number) => void;
 }
 
 const GlobeControls = ({
@@ -34,13 +36,15 @@ const GlobeControls = ({
   onShowArcsChange,
   onArcColorChange,
   onHeadquartersLocationChange,
-  onShowVisitorMarkersChange
+  onShowVisitorMarkersChange,
+  onOffsetXChange,
+  onOffsetYChange
 }: GlobeControlsProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const [showVisitorMarker, setShowVisitorMarker] = useState(
     localStorage.getItem('showLocationMarkers') !== 'false'
   );
-  const [activeTab, setActiveTab] = useState<'basic' | 'appearance' | 'connections'>('basic');
+  const [activeTab, setActiveTab] = useState<'basic' | 'appearance' | 'connections' | 'position'>('basic');
   
   // Convert RGB array (0-1 values) to hex color for input fields
   const rgbToHex = (rgb: RGBColor): string => {
@@ -149,6 +153,12 @@ const GlobeControls = ({
               className={`flex-1 py-2 px-3 text-xs font-medium ${activeTab === 'connections' ? 'text-indigo-300 border-b-2 border-indigo-500' : 'text-white/70 hover:text-white/90'}`}
             >
               Arcs
+            </button>
+            <button
+              onClick={() => setActiveTab('position')}
+              className={`flex-1 py-2 px-3 text-xs font-medium ${activeTab === 'position' ? 'text-indigo-300 border-b-2 border-indigo-500' : 'text-white/70 hover:text-white/90'}`}
+            >
+              Position
             </button>
           </div>
           
@@ -349,6 +359,88 @@ const GlobeControls = ({
                   className="py-1 px-2 text-xs bg-green-900/30 hover:bg-green-800/40 text-green-300 rounded"
                 >
                   Matrix
+                </button>
+              </div>
+            </div>
+          )}
+          
+          {/* Position tab */}
+          {activeTab === 'position' && (
+            <div className="space-y-4">
+              <div>
+                <div className="flex justify-between mb-1">
+                  <Label htmlFor="offset-x" className="block text-xs text-indigo-200">Horizontal Position</Label>
+                  <span className="text-xs text-white/70">{settings.offsetX}%</span>
+                </div>
+                <Slider 
+                  id="offset-x"
+                  min={-50}
+                  max={50}
+                  step={1}
+                  value={[settings.offsetX]}
+                  onValueChange={(value) => onOffsetXChange && onOffsetXChange(value[0])}
+                  className="w-full"
+                />
+                <div className="text-xs text-white/50 mt-1">
+                  Adjust the horizontal position of the globe
+                </div>
+              </div>
+              
+              <div className="mt-4">
+                <div className="flex justify-between mb-1">
+                  <Label htmlFor="offset-y" className="block text-xs text-indigo-200">Vertical Position</Label>
+                  <span className="text-xs text-white/70">{settings.offsetY}%</span>
+                </div>
+                <Slider 
+                  id="offset-y"
+                  min={-50}
+                  max={50}
+                  step={1}
+                  value={[settings.offsetY]}
+                  onValueChange={(value) => onOffsetYChange && onOffsetYChange(value[0])}
+                  className="w-full"
+                />
+                <div className="text-xs text-white/50 mt-1">
+                  Adjust the vertical position of the globe
+                </div>
+              </div>
+              
+              <div className="flex flex-wrap gap-2 pt-3 border-t border-white/10">
+                <button
+                  onClick={() => {
+                    if (onOffsetXChange) onOffsetXChange(0);
+                    if (onOffsetYChange) onOffsetYChange(0);
+                  }}
+                  className="py-1 px-2 text-xs bg-white/10 hover:bg-white/20 text-white/80 rounded"
+                >
+                  Center
+                </button>
+                <button
+                  onClick={() => {
+                    if (onOffsetXChange) onOffsetXChange(-30);
+                    if (onOffsetYChange) onOffsetYChange(0);
+                  }}
+                  className="py-1 px-2 text-xs bg-blue-900/30 hover:bg-blue-800/40 text-blue-300 rounded"
+                >
+                  Left Side
+                </button>
+                <button
+                  onClick={() => {
+                    if (onOffsetXChange) onOffsetXChange(30);
+                    if (onOffsetYChange) onOffsetYChange(0);
+                  }}
+                  className="py-1 px-2 text-xs bg-purple-900/30 hover:bg-purple-800/40 text-purple-300 rounded"
+                >
+                  Right Side
+                </button>
+                <button
+                  onClick={() => {
+                    if (onOffsetXChange) onOffsetXChange(0);
+                    if (onOffsetYChange) onOffsetYChange(-20);
+                  }}
+                  className="py-1 px-2 text-xs bg-green-900/30 hover:bg-green-800/40 text-green-300 rounded"
+                >
+                  Top
                 </button>
               </div>
             </div>

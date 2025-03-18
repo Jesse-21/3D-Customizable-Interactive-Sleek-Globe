@@ -19,22 +19,35 @@ export interface GlobeSettings {
   arcColor: RGBColor;
   headquartersLocation: LocationCoordinates;
   showVisitorMarkers: boolean;
+  // Globe positioning
+  offsetX: number; // Horizontal position offset in percentage (-50 to 50)
+  offsetY: number; // Vertical position offset in percentage (-50 to 50)
 }
 
 export const useGlobeSettings = () => {
-  const [settings, setSettings] = useState<GlobeSettings>({
-    rotationSpeed: 3,
-    mouseSensitivity: 40,
-    dotSize: 0.5,
-    globeSize: 1.1,
-    autoRotate: true,
-    landColor: [0.3, 0.3, 0.3], // Default gray land color
-    haloColor: [1, 1, 1],      // Default white halo
-    glitchEffect: false,       // Glitch effect disabled by default
-    showArcs: true,           // Connection arcs enabled by default
-    arcColor: [0.1, 0.6, 1.0], // Blue arcs
-    headquartersLocation: [37.7749, -122.4194], // Default: San Francisco
-    showVisitorMarkers: true  // Show visitor markers by default
+  const [settings, setSettings] = useState<GlobeSettings>(() => {
+    // Check if we're on the home page to apply different default settings
+    const isHomePage = window.location.pathname === '/';
+    
+    return {
+      rotationSpeed: 3,
+      mouseSensitivity: 40,
+      dotSize: 0.5,
+      // Make the globe larger on the home page for better visibility
+      globeSize: isHomePage ? 2.4 : 1.1,
+      autoRotate: true,
+      landColor: [0.3, 0.3, 0.3], // Default gray land color
+      haloColor: [1, 1, 1],      // Default white halo
+      glitchEffect: false,       // Glitch effect disabled by default
+      showArcs: true,           // Connection arcs enabled by default
+      arcColor: [0.3, 0.7, 1.0], // Brighter blue arcs
+      headquartersLocation: [37.7749, -122.4194], // Default: San Francisco
+      showVisitorMarkers: true,  // Show visitor markers by default
+      // Offset to the left side on home page for better visibility with content
+      offsetX: isHomePage ? -15 : 0,  
+      // Center vertically on home page
+      offsetY: isHomePage ? 0 : 0   
+    };
   });
   
   const updateRotationSpeed = (value: number) => {
@@ -85,6 +98,18 @@ export const useGlobeSettings = () => {
     setSettings(prev => ({ ...prev, showVisitorMarkers: value }));
   };
   
+  const updateOffsetX = (value: number) => {
+    // Clamp value between -50 and 50
+    const clampedValue = Math.max(-50, Math.min(50, value));
+    setSettings(prev => ({ ...prev, offsetX: clampedValue }));
+  };
+  
+  const updateOffsetY = (value: number) => {
+    // Clamp value between -50 and 50
+    const clampedValue = Math.max(-50, Math.min(50, value));
+    setSettings(prev => ({ ...prev, offsetY: clampedValue }));
+  };
+  
   // Helper function to convert hex color to RGB array (values 0-1)
   const hexToRgb = (hex: string): RGBColor => {
     // Remove # if present
@@ -122,6 +147,8 @@ export const useGlobeSettings = () => {
     updateArcColor,
     updateHeadquartersLocation,
     updateShowVisitorMarkers,
+    updateOffsetX,
+    updateOffsetY,
     hexToRgb,
     rgbToHex
   };
