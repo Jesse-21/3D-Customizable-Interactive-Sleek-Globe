@@ -11,17 +11,11 @@ export default function Home() {
     <>
       <GlobeBackground settings={settings} />
       
-      {/* Header with github link */}
-      <header className="fixed top-0 w-full z-10 p-4 md:p-6 flex justify-between items-center">
-        <div className="flex items-center gap-2">
-          <GlobeIcon className="h-5 w-5 text-indigo-400" />
-          <span className="text-lg font-semibold bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent">
-            Interactive Globe
-          </span>
-        </div>
+      {/* Header with navigation */}
+      <header className="fixed top-0 w-full z-10 p-4 md:p-6 flex justify-end items-center">
         <div className="flex items-center gap-2">
           <Link href="/preview">
-            <button className="flex items-center gap-2 text-sm text-white/70 hover:text-white transition-colors py-1 px-3 rounded-full bg-indigo-500/30 hover:bg-indigo-500/50 mr-2">
+            <button className="flex items-center gap-2 text-sm text-white/70 hover:text-white transition-colors py-1 px-3 rounded-full bg-indigo-500/30 hover:bg-indigo-500/50 mr-2 backdrop-blur-sm">
               <Eye className="h-4 w-4" />
               <span className="hidden sm:inline">Preview Mode</span>
             </button>
@@ -30,7 +24,7 @@ export default function Home() {
             href="https://github.com"
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-2 text-sm text-white/70 hover:text-white transition-colors py-1 px-3 rounded-full bg-white/5 hover:bg-white/10"
+            className="flex items-center gap-2 text-sm text-white/70 hover:text-white transition-colors py-1 px-3 rounded-full bg-black/30 hover:bg-black/50 backdrop-blur-sm"
           >
             <Github className="h-4 w-4" />
             <span className="hidden sm:inline">View on GitHub</span>
@@ -38,15 +32,7 @@ export default function Home() {
         </div>
       </header>
       
-      {/* Welcome message that highlights the globe's presence on the left */}
-      <div className="relative z-10 pointer-events-none">
-        <div className="absolute top-1/3 left-1/4 transform -translate-x-1/2 -translate-y-1/2 text-center">
-          <div className="text-2xl md:text-3xl font-light mb-2 text-white/80">
-            <span className="animate-pulse">⟵</span> Interactive Globe
-          </div>
-          <p className="text-sm text-white/60">Rotate and explore</p>
-        </div>
-      </div>
+      {/* We've removed the floating text that made the page hard to read */}
       
       {/* Main content positioned to the right, allowing the globe to be fully visible on the left */}
       <div className="relative z-10 min-h-screen flex flex-col items-end justify-center px-4 sm:px-6 lg:px-8">

@@ -1,14 +1,11 @@
 import { useState } from "react";
 import GlobeBackground from "@/components/GlobeBackground";
-import { useGlobeSettings, RGBColor } from "@/hooks/useGlobeSettings";
-import { Slider } from "@/components/ui/slider";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
-import { Download, Home, ChevronDown, ChevronUp, MapPin, Palette, Zap, ArrowLeft } from "lucide-react";
+import { useGlobeSettings, RGBColor, LocationCoordinates } from "@/hooks/useGlobeSettings";
+import { Download, ArrowLeft, Move } from "lucide-react";
 import { Link } from "wouter";
-import { useEffect } from "react";
 import JSZip from "jszip";
 import { saveAs } from "file-saver";
+import GlobeControls from "@/components/GlobeControls";
 
 export default function Preview() {
   const {
@@ -21,66 +18,17 @@ export default function Preview() {
     updateLandColor,
     updateHaloColor,
     updateGlitchEffect,
+    updateShowArcs,
+    updateArcColor,
+    updateHeadquartersLocation,
+    updateShowVisitorMarkers,
+    updateOffsetX,
+    updateOffsetY,
     hexToRgb,
     rgbToHex
   } = useGlobeSettings();
   
-  const [isControlsOpen, setIsControlsOpen] = useState(true);
-  const [isAppearanceOpen, setIsAppearanceOpen] = useState(false);
-  const [showVisitorMarker, setShowVisitorMarker] = useState(
-    localStorage.getItem('showLocationMarkers') !== 'false'
-  );
   const [downloading, setDownloading] = useState(false);
-  
-  // Toggle visitor location marker
-  const toggleVisitorMarker = () => {
-    const newValue = !showVisitorMarker;
-    setShowVisitorMarker(newValue);
-    localStorage.setItem('showLocationMarkers', newValue ? 'true' : 'false');
-    
-    // Force reload to update the globe with or without markers
-    window.location.reload();
-  };
-  
-  // Reset visitor marker data (remove the 30-day marker)
-  const resetVisitorData = () => {
-    localStorage.removeItem('visitorLocation');
-    // Force reload to update the globe
-    window.location.reload();
-  };
-  
-  // Handle color input changes
-  const handleLandColorChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const hexColor = e.target.value;
-    updateLandColor(hexToRgb(hexColor));
-  };
-  
-  const handleHaloColorChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const hexColor = e.target.value;
-    updateHaloColor(hexToRgb(hexColor));
-  };
-  
-  // Apply a preset color theme
-  const applyColorTheme = (theme: 'classic' | 'ocean' | 'cosmic' | 'matrix') => {
-    switch(theme) {
-      case 'classic':
-        updateLandColor([0.3, 0.3, 0.3]); // Default gray
-        updateHaloColor([1, 1, 1]); // Default white
-        break;
-      case 'ocean':
-        updateLandColor([0.1, 0.5, 0.8]); // Blue
-        updateHaloColor([0.4, 0.8, 1]); // Light blue
-        break;
-      case 'cosmic':
-        updateLandColor([0.7, 0.2, 0.8]); // Purple
-        updateHaloColor([0.9, 0.5, 1]); // Pink
-        break;
-      case 'matrix':
-        updateLandColor([0.05, 0.8, 0.2]); // Green
-        updateHaloColor([0.6, 1, 0.3]); // Lime
-        break;
-    }
-  };
   
   // Generate download package with current settings
   const generatePackage = async () => {
@@ -166,7 +114,11 @@ export default function Preview() {
     landColor: [${settings.landColor[0]}, ${settings.landColor[1]}, ${settings.landColor[2]}],
     haloColor: [${settings.haloColor[0]}, ${settings.haloColor[1]}, ${settings.haloColor[2]}],
     glitchEffect: ${settings.glitchEffect},
-    showVisitorLocation: true  // Set to false to disable visitor location marker
+    showArcs: ${settings.showArcs},
+    arcColor: [${settings.arcColor[0]}, ${settings.arcColor[1]}, ${settings.arcColor[2]}],
+    offsetX: ${settings.offsetX},
+    offsetY: ${settings.offsetY},
+    showVisitorLocation: ${settings.showVisitorMarkers}
   };
 
   // Initialize globe
@@ -317,6 +269,13 @@ function initGlobe(settings) {
       }
     });
     
+    // Position the globe based on offsetX and offsetY settings
+    const globeContainer = canvasElement.parentElement;
+    if (globeContainer) {
+      // Apply offset styling
+      canvasElement.style.transform = \`translate(\${settings.offsetX}%, \${settings.offsetY}%)\`;
+    }
+    
     // Add touch-specific event handlers for mobile devices
     const onTouchStart = (e) => {
       if (e.touches.length === 1) {
@@ -456,6 +415,7 @@ This package provides an interactive 3D globe as a website background that respo
 - Custom land and halo colors
 - Futuristic glitch effect option
 - Optional visitor location marker that persists for 30 days
+- Customizable positioning controls
 - Fully customizable appearance
 
 ## Installation
@@ -479,6 +439,8 @@ Edit the settings in globe.js to customize:
 - \`haloColor\`: Color of the glow around the globe [R,G,B] (values 0-1)
 - \`glitchEffect\`: Enable futuristic glitch effect with random color disruptions
 - \`showVisitorLocation\`: Whether to show the visitor's location marker
+- \`offsetX\`: Horizontal position offset in percentage (-50 to 50)
+- \`offsetY\`: Vertical position offset in percentage (-50 to 50)
 
 ## Credits
 
@@ -524,16 +486,19 @@ canvas.globe-canvas {
       // Generate the zip file
       const blob = await zip.generateAsync({ type: "blob" });
       
-      // Save the zip file
-      saveAs(blob, "interactive-globe-background.zip");
+      // Save the file
+      saveAs(blob, "interactive-globe-package.zip");
+      
+      // Show success message
+      console.log("Package generated successfully!");
     } catch (error) {
       console.error("Error generating package:", error);
-      alert("There was an error generating the download package.");
     } finally {
       setDownloading(false);
     }
   };
-  
+
+  // Use GlobeControls component to manage all controls in one place
   return (
     <>
       <GlobeBackground settings={settings} />
@@ -543,7 +508,7 @@ canvas.globe-canvas {
         <Link to="/">
           <button className="flex items-center gap-2 bg-black/30 backdrop-blur-sm text-white py-2 px-4 rounded-lg hover:bg-black/40 transition-colors">
             <ArrowLeft className="h-4 w-4" />
-            <span>Back to Main Page</span>
+            <span>Back</span>
           </button>
         </Link>
       </header>
@@ -564,217 +529,24 @@ canvas.globe-canvas {
         </button>
       </div>
       
-      {/* Transparent Controls Panel - Moved to right side */}
-      <div className="fixed right-4 top-1/2 transform -translate-y-1/2 z-10">
-        <div className="bg-black/20 backdrop-blur-sm p-4 rounded-xl border border-white/10 shadow-xl max-w-xs">
-          <div className="flex justify-between items-center mb-4">
-            <button 
-              onClick={() => {
-                setIsControlsOpen(!isControlsOpen);
-                setIsAppearanceOpen(false);
-              }}
-              className="flex items-center gap-2 text-white hover:text-indigo-300 transition-colors"
-            >
-              <span className="font-medium">Basic Controls</span>
-              {isControlsOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
-            </button>
-          </div>
-          
-          {isControlsOpen && (
-            <div className="space-y-4 mb-6">
-              <div>
-                <div className="flex justify-between mb-1">
-                  <Label htmlFor="rotation-speed" className="block text-xs text-indigo-200">Rotation Speed</Label>
-                  <span className="text-xs text-white/70">{settings.rotationSpeed.toFixed(1)}</span>
-                </div>
-                <Slider 
-                  id="rotation-speed"
-                  min={0}
-                  max={10}
-                  step={0.1}
-                  value={[settings.rotationSpeed]}
-                  onValueChange={(value) => updateRotationSpeed(value[0])}
-                  className="w-full"
-                />
-              </div>
-              
-              <div>
-                <div className="flex justify-between mb-1">
-                  <Label htmlFor="mouse-sensitivity" className="block text-xs text-indigo-200">Mouse Sensitivity</Label>
-                  <span className="text-xs text-white/70">{settings.mouseSensitivity}</span>
-                </div>
-                <Slider 
-                  id="mouse-sensitivity"
-                  min={0}
-                  max={100}
-                  step={1}
-                  value={[settings.mouseSensitivity]}
-                  onValueChange={(value) => updateMouseSensitivity(value[0])}
-                  className="w-full"
-                />
-              </div>
-              
-              <div>
-                <div className="flex justify-between mb-1">
-                  <Label htmlFor="dot-size" className="block text-xs text-indigo-200">Dot Size</Label>
-                  <span className="text-xs text-white/70">{settings.dotSize.toFixed(2)}</span>
-                </div>
-                <Slider 
-                  id="dot-size"
-                  min={0.1}
-                  max={2}
-                  step={0.05}
-                  value={[settings.dotSize]}
-                  onValueChange={(value) => updateDotSize(value[0])}
-                  className="w-full"
-                />
-              </div>
-              
-              <div>
-                <div className="flex justify-between mb-1">
-                  <Label htmlFor="globe-size" className="block text-xs text-indigo-200">Globe Size</Label>
-                  <span className="text-xs text-white/70">{settings.globeSize.toFixed(2)}</span>
-                </div>
-                <Slider 
-                  id="globe-size"
-                  min={0.5}
-                  max={3}
-                  step={0.05}
-                  value={[settings.globeSize]}
-                  onValueChange={(value) => updateGlobeSize(value[0])}
-                  className="w-full"
-                />
-              </div>
-              
-              <div className="pt-2 space-y-2 border-t border-white/10">
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="auto-rotate" className="text-xs text-indigo-200">Auto Rotate</Label>
-                  <Switch 
-                    id="auto-rotate"
-                    checked={settings.autoRotate}
-                    onCheckedChange={updateAutoRotate}
-                  />
-                </div>
-                
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1">
-                    <MapPin className="h-3 w-3 text-orange-400" />
-                    <Label htmlFor="visitor-marker" className="text-xs text-indigo-200">Show Visitor Location</Label>
-                  </div>
-                  <Switch 
-                    id="visitor-marker"
-                    checked={showVisitorMarker}
-                    onCheckedChange={toggleVisitorMarker}
-                  />
-                </div>
-              </div>
-            </div>
-          )}
-          
-          <div className="mt-3">
-            <button 
-              onClick={() => {
-                setIsAppearanceOpen(!isAppearanceOpen);
-                setIsControlsOpen(false);
-              }}
-              className="flex items-center gap-2 text-white hover:text-indigo-300 transition-colors"
-            >
-              <span className="font-medium">Appearance</span>
-              {isAppearanceOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
-            </button>
-          </div>
-          
-          {isAppearanceOpen && (
-            <div className="space-y-4 mt-3">
-              <div>
-                <div className="flex justify-between mb-1">
-                  <div className="flex items-center gap-1">
-                    <Palette className="h-3 w-3 text-indigo-300" />
-                    <Label htmlFor="land-color" className="block text-xs text-indigo-200">Land Color</Label>
-                  </div>
-                  <input 
-                    type="color"
-                    id="land-color"
-                    value={rgbToHex(settings.landColor)}
-                    onChange={handleLandColorChange}
-                    className="w-8 h-6 rounded overflow-hidden cursor-pointer"
-                  />
-                </div>
-                <div className="text-xs text-white/50 mt-1">
-                  Color of continents and land masses on the globe
-                </div>
-              </div>
-              
-              <div>
-                <div className="flex justify-between mb-1">
-                  <div className="flex items-center gap-1">
-                    <Palette className="h-3 w-3 text-indigo-300" />
-                    <Label htmlFor="halo-color" className="block text-xs text-indigo-200">Halo Color</Label>
-                  </div>
-                  <input 
-                    type="color"
-                    id="halo-color"
-                    value={rgbToHex(settings.haloColor)}
-                    onChange={handleHaloColorChange}
-                    className="w-8 h-6 rounded overflow-hidden cursor-pointer"
-                  />
-                </div>
-                <div className="text-xs text-white/50 mt-1">
-                  Color of the halo/glow around the globe
-                </div>
-              </div>
-              
-              <div className="pt-4 border-t border-white/10">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1">
-                    <Zap className="h-3 w-3 text-yellow-400" />
-                    <Label htmlFor="glitch-effect" className="text-xs text-indigo-200">Glitch Effect</Label>
-                  </div>
-                  <Switch 
-                    id="glitch-effect"
-                    checked={settings.glitchEffect}
-                    onCheckedChange={updateGlitchEffect}
-                  />
-                </div>
-                <div className="text-xs text-white/50 mt-1">
-                  Adds a futuristic glitch effect that randomly distorts colors
-                </div>
-              </div>
-              
-              <div className="flex flex-wrap gap-2 pt-3 border-t border-white/10">
-                <button
-                  onClick={() => applyColorTheme('classic')}
-                  className="py-1 px-2 text-xs bg-white/10 hover:bg-white/20 text-white/80 rounded"
-                >
-                  Classic
-                </button>
-                <button
-                  onClick={() => applyColorTheme('ocean')}
-                  className="py-1 px-2 text-xs bg-blue-900/30 hover:bg-blue-800/40 text-blue-300 rounded"
-                >
-                  Ocean
-                </button>
-                <button
-                  onClick={() => applyColorTheme('cosmic')}
-                  className="py-1 px-2 text-xs bg-purple-900/30 hover:bg-purple-800/40 text-purple-300 rounded"
-                >
-                  Cosmic
-                </button>
-                <button
-                  onClick={() => applyColorTheme('matrix')}
-                  className="py-1 px-2 text-xs bg-green-900/30 hover:bg-green-800/40 text-green-300 rounded"
-                >
-                  Matrix
-                </button>
-              </div>
-            </div>
-          )}
-          
-          <div className="text-center mt-4 text-white/50 text-xs">
-            Make your adjustments and click Download to get your custom globe package
-          </div>
-        </div>
-      </div>
+      {/* Use the comprehensive GlobeControls component */}
+      <GlobeControls
+        settings={settings}
+        onRotationSpeedChange={updateRotationSpeed}
+        onMouseSensitivityChange={updateMouseSensitivity}
+        onDotSizeChange={updateDotSize}
+        onGlobeSizeChange={updateGlobeSize}
+        onAutoRotateChange={updateAutoRotate}
+        onLandColorChange={updateLandColor}
+        onHaloColorChange={updateHaloColor}
+        onGlitchEffectChange={updateGlitchEffect}
+        onShowArcsChange={updateShowArcs}
+        onArcColorChange={updateArcColor}
+        onHeadquartersLocationChange={updateHeadquartersLocation}
+        onShowVisitorMarkersChange={updateShowVisitorMarkers}
+        onOffsetXChange={updateOffsetX}
+        onOffsetYChange={updateOffsetY}
+      />
     </>
   );
 }

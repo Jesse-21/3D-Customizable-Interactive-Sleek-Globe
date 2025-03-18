@@ -710,21 +710,32 @@ const GlobeBackground = ({ settings }: GlobeBackgroundProps) => {
               
               // Calculate a great circle arc that follows the globe's curvature
               // The greater the angle, the more the arc should curve
-              const arcFactor = Math.sin(angleBetween / 2) * globeRadius * 0.8;
+              // Use a more aggressive factor to ensure proper curvature
+              const arcFactor = Math.sin(angleBetween / 2) * globeRadius * 1.2;
               
-              // Blend between a flat drawing and spherical projection based on z values
-              // Points more toward the viewer (higher z) should appear more curved
+              // Use actual 3D positions for better depth perception
+              // Higher Z values (closer to viewer) should have more pronounced curves
               const zAvg = ((fromPoint.z || 0) + (toPoint.z || 0)) / 2;
-              const curveFactor = 0.6 + Math.max(0, zAvg) * 0.6; // 0.6 to 1.2 range
               
-              // For improved arc paths, we'll use the spherical properties
-              // Since we don't need the full 3D cross product, we'll simplify
-              // our calculations for the 2D canvas implementation
+              // Much stronger curvature for 3D effect (higher number = more curved)
+              const curveFactor = 1.0 + Math.max(0, zAvg) * 1.0; // 1.0 to 2.0 range
               
-              // Calculate the actual control point that follows globe curvature
-              // For a spherical surface, we need points that lie on the great circle
-              const controlX = centerX + (startVector.x + endVector.x) / 2;
-              const controlY = centerY + (startVector.y + endVector.y) / 2 - arcFactor * curveFactor;
+              // Calculate midpoint in 3D space between the two points
+              const midX = (startVector.x + endVector.x) / 2;
+              const midY = (startVector.y + endVector.y) / 2;
+              const midZ = (startVector.z + endVector.z) / 2;
+              
+              // To follow the globe's curvature, we need to "pull" the control point 
+              // toward the center of the globe, proportional to the arc's length
+              const distanceFromCenter = Math.sqrt(midX * midX + midY * midY + midZ * midZ);
+              
+              // Calculate normalized direction from midpoint to center
+              const normX = -midX / distanceFromCenter;
+              const normY = -midY / distanceFromCenter;
+              
+              // Calculate control point that follows the sphere's surface
+              const controlX = centerX + midX + (normX * arcFactor * curveFactor);
+              const controlY = centerY + midY + (normY * arcFactor * curveFactor);
               
               // Calculate the spline points for a smooth arc
               // Use a quadratic bezier curve for performance
