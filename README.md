@@ -58,6 +58,6 @@ The codebase includes a partially developed “Glitch” setting, which is curre
 If anyone successfully resolves the issues with either the “Glitch” or “Arches” settings, please share your solution in the repository’s Discussions section. I’d be more than happy to review the code and integrate it after ensuring it doesn’t disrupt other functionality.
 ## Credits
 
-- This package uses the COBE library (https://github.com/shuding/cobe) for the WebGL globe rendering.
-`);
+- This package uses the COBE library (https://github.com/shuding/cobe) for the WebGL globe rendering, which also means that it does’t rely on any external libraries or UI framework. It is a vanilla JavaScript library that can be used in any web applications.
 - Special Thanks to Replit for allowing me to utilize and quietly have fun on their platform during this repo's development.
+
