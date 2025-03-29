@@ -1,4 +1,4 @@
-
+## Cobe Imspired Dot Globe Site with Free Visitor Customizing and Code Downloader
 
 This repository provides a customizable, interactive 3D dot globe that is mouse-responsive, draggable, and rotates smoothly. The included website features a simple landing page alongside a Preview Mode where users can modify the globe’s appearance and position (adjusting its X and Y axis placement). Once satisfied with their customizations in Preview Mode, users can download a lightweight set of files that will replicate their chosen globe settings. If no changes are made, the downloaded globe will default to the initial appearance and positioning as displayed when Preview Mode first loads.
 
